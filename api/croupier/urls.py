@@ -1,4 +1,4 @@
-"""api URL Configuration
+"""croupier URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.2/topics/http/urls/
@@ -16,10 +16,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.conf.urls import url, include
+from rest_framework import routers
+from croupier.views import TaskViewSet
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    url(r"^oidc/", include("mozilla_django_oidc.urls")),
-    path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
-    path("", include("croupier.urls"))
-]
+router = routers.DefaultRouter()
+router.register(r"tasks", TaskViewSet, base_name="tasks")
+urlpatterns = router.urls

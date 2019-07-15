@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "rest-framework",
+    "rest_framework",
     "mozilla_django_oidc",  # Load after auth
     "croupier",
 ]
@@ -140,3 +140,5 @@ REST_FRAMEWORK = {
         # other authentication classes, if needed
     ]
 }
+
+OIDC_DRF_AUTH_BACKEND = "mozilla_django_oidc.auth.OIDCAuthenticationBackend"
