@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework import serializers
 from rest_framework import viewsets
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
 
 class Task:
@@ -37,6 +38,7 @@ class TaskSerializer(serializers.Serializer):
 class TaskViewSet(viewsets.ViewSet):
     # Required for the Browsable API renderer to have a nice form.
     serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated]
 
     def list(self, request):
         serializer = TaskSerializer(instance=tasks.values(), many=True)
