@@ -122,15 +122,9 @@ STATIC_URL = "/static/"
 OIDC_RP_CLIENT_ID = os.environ["OIDC_RP_CLIENT_ID"]
 OIDC_RP_CLIENT_SECRET = os.environ["OIDC_RP_CLIENT_SECRET"]
 
-OIDC_OP_AUTHORIZATION_ENDPOINT = (
-    "http://localhost/auth/realms/Hidalgo/protocol/openid-connect/auth"
-)
-OIDC_OP_TOKEN_ENDPOINT = (
-    "http://localhost/auth/realms/Hidalgo/protocol/openid-connect/token"
-)
-OIDC_OP_USER_ENDPOINT = (
-    "http://localhost/auth/realms/Hidalgo/protocol/openid-connect/userinfo"
-)
+OIDC_OP_AUTHORIZATION_ENDPOINT = os.environ["OIDC_OP_AUTHORIZATION_ENDPOINT"]
+OIDC_OP_TOKEN_ENDPOINT = os.environ["OIDC_OP_TOKEN_ENDPOINT"]
+OIDC_OP_USER_ENDPOINT = os.environ["OIDC_OP_USER_ENDPOINT"]
 
 # LOGIN_REDIRECT_URL = "<URL path to redirect to after login>"
 # LOGOUT_REDIRECT_URL = "<URL path to redirect to after logout>"
@@ -142,10 +136,13 @@ REST_FRAMEWORK = {
     ]
 }
 
-AUTHENTICATION_BACKENDS = (
-    "keycloak.auth.OIDCAuthBackend",
-)
+AUTHENTICATION_BACKENDS = ("keycloak.auth.OIDCAuthBackend",)
 
 # AUTHENTICATION_BACKENDS = "api.keycloak.auth.OIDCAuthBackend"
 # OIDC_DRF_AUTH_BACKEND = "mozilla_django_oidc.auth.OIDCAuthenticationBackend"
 # OIDC_DRF_AUTH_BACKEND = "keycloak.auth.OIDCAuthBackend"
+
+ORCHESTRATOR_HOST = os.environ["ORCHESTRATOR_HOST"]
+ORCHESTRATOR_USER = os.environ["ORCHESTRATOR_USER"]
+ORCHESTRATOR_PASS = os.environ["ORCHESTRATOR_PASS"]
+ORCHESTRATOR_TENANT = os.environ["ORCHESTRATOR_TENANT"]
