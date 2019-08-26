@@ -2,13 +2,13 @@ from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 
 class OIDCAuthBackend(OIDCAuthenticationBackend):
-    def get_userinfo(self, access_token, id_token, payload):
-        """Return user details dictionary (keycloak user info + access token info).
-        The id_token and payload are not used in this implementation """
-        user_info = super().get_userinfo(access_token, id_token, payload)
-        payload = self.verify_token(id_token)
+    # def get_userinfo(self, access_token, id_token, payload):
+    #     """Return user details dictionary (keycloak user info + access token info).
+    #     The id_token and payload are not used in this implementation """
+    #     user_info = super().get_userinfo(access_token, id_token, payload)
 
-        return {**user_info, **payload}
+    #     print(user_info)
+    #     return user_info
 
     def update_user(self, user, claims):
         """Update existing user with new claims, if necessary save, and return user"""

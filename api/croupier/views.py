@@ -20,10 +20,10 @@ from croupier.serializers import ApplicationSerializer, AppInstanceSerializer
 class ApplicationViewSet(viewsets.ModelViewSet):
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]  # TODO use roles
 
     def create(self, request, *args, **kwargs):
-        request.data["owner"] = request.user
+        request.data["owner"] = request.user.username
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

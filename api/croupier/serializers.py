@@ -9,13 +9,18 @@ from croupier.models import (
 )
 
 
-class ApplicationSerializer(serializers.HyperlinkedModelSerializer):
+class ApplicationSerializer(serializers.ModelSerializer):
+    owner = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = Application
         fields = ["name", "description", "owner"]
 
 
 class AppInstanceSerializer(serializers.HyperlinkedModelSerializer):
+    owner = serializers.PrimaryKeyRelatedField(read_only=True)
+    app = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = AppInstance
         fields = ["name", "description", "owner", "app", "last_execution"]
