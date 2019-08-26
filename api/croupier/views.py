@@ -10,11 +10,17 @@ from croupier import cfy
 from croupier.models import (
     Application,
     AppInstance,
-    # ComputingInfrastructure,
-    # ComputingInstance,
-    # DataCatalogueKey,
+    DataCatalogueKey,
+    ComputingInfrastructure,
+    ComputingInstance,
 )
-from croupier.serializers import ApplicationSerializer, AppInstanceSerializer
+from croupier.serializers import (
+    ApplicationSerializer,
+    AppInstanceSerializer,
+    DataCatalogueKeySerializer,
+    ComputingInfrastructureSerializer,
+    ComputingInstanceSerializer,
+)
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
@@ -199,3 +205,103 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DataCatalogueKeyViewSet(viewsets.ModelViewSet):
+    queryset = DataCatalogueKey.objects.all()
+    serializer_class = DataCatalogueKeySerializer
+    permission_classes = [IsAuthenticated]
+
+
+class ComputingInfrastructureViewSet(viewsets.ModelViewSet):
+    queryset = ComputingInfrastructure.objects.all()
+    serializer_class = ComputingInfrastructureSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # TODO validate definition
+        # if 'wm_config' not in dict_def:
+        #     error = '"wm_config" key not found in definition file'
+        # elif infra_type == cls.HPC:
+        #     if 'country_tz' not in dict_def['wm_config']:
+        #         error = '"country_tz" key not found in definition file under "wm_config"'
+        #     elif 'partitions' not in dict_def:
+        #         error = '"partitions" key not found in definition file'
+        #     elif not isinstance(dict_def['partitions'], List) \
+        #             and dict_def['partitions'] != 'None':
+        #         error = '"partitions" key does not define a list or "None" value'
+        #     elif 'mpi_versions' not in dict_def:
+        #         error = '"mpi_versions" key not found in definition file'
+        #     elif not isinstance(dict_def['mpi_versions'], List) \
+        #             and dict_def['mpi_versions'] != 'None':
+        #         error = '"mpi_versions" key does not define a list or "None" value'
+        #     elif 'singularity_versions' not in dict_def:
+        #         error = '"singularity_versions" key not found in definition file'
+        #     elif not isinstance(dict_def['singularity_versions'], List) \
+        #             and dict_def['singularity_versions'] != 'None':
+        #         error = '"singularity_versions" key does not define a list or "None" value'
+        # elif infra_type == cls.OPENSTACK:
+        #     if 'openstack_config' not in dict_def:
+        #         error = '"openstack_config" key not found in definition file'
+        #     elif not isinstance(dict_def['openstack_config'], Dict):
+        #         error = '"openstack_config" key does not define a dictionary'
+        #     elif 'openstack_flavors' not in dict_def:
+        #         error = '"openstack_flavors" key not found in definition file'
+        #     elif not isinstance(dict_def['openstack_flavors'], List) \
+        #             and dict_def['openstack_flavors'] != 'None':
+        #         error = '"openstack_flavors" key does not define a list or "None" value'
+        #     elif 'openstack_images' not in dict_def:
+        #         error = '"openstack_images" key not found in definition file'
+        #     elif not isinstance(dict_def['openstack_images'], List) \
+        #             and dict_def['openstack_images'] != 'None':
+        #         error = '"openstack_images" key does not define a list or "None" value'
+        #     elif 'openstack_networks' not in dict_def:
+        #         error = '"openstack_networks" key not found in definition file'
+        #     elif not isinstance(dict_def['openstack_networks'], List) \
+        #             and dict_def['openstack_networks'] != 'None':
+        #         error = '"openstack_networks" key does not define a list or "None" value'
+        #     elif 'openstack_volumes' not in dict_def:
+        #         error = '"openstack_volumes" key not found in definition file'
+        #     elif not isinstance(dict_def['openstack_volumes'], List) \
+        #             and dict_def['openstack_volumes'] != 'None':
+        #         error = '"openstack_volumes" key does not define a list or "None" value'
+        # elif infra_type == cls.EOSC:
+        #     if 'eosc_config' not in dict_def:
+        #         error = '"eosc_config" key not found in definition file'
+        #     elif not isinstance(dict_def['eosc_config'], Dict):
+        #         error = '"eosc_config" key does not define a dictionary'
+        #     elif 'eosc_flavors' not in dict_def:
+        #         error = '"eosc_flavors" key not found in definition file'
+        #     elif not isinstance(dict_def['eosc_flavors'], List) \
+        #             and dict_def['eosc_flavors'] != 'None':
+        #         error = '"eosc_flavors" key does not define a list or "None" value'
+        #     elif 'eosc_images' not in dict_def:
+        #         error = '"eosc_images" key not found in definition file'
+        #     elif not isinstance(dict_def['eosc_images'], List) \
+        #             and dict_def['eosc_images'] != 'None':
+        #         error = '"eosc_images" key does not define a list or "None" value'
+        #     elif 'eosc_networks' not in dict_def:
+        #         error = '"eosc_networks" key not found in definition file'
+        #     elif not isinstance(dict_def['eosc_networks'], List) \
+        #             and dict_def['eosc_networks'] != 'None':
+        #         error = '"eosc_networks" key does not define a list or "None" value'
+        #     elif 'eosc_volumes' not in dict_def:
+        #         error = '"eosc_volumes" key not found in definition file'
+        #     elif not isinstance(dict_def['eosc_volumes'], List) \
+        #             and dict_def['eosc_volumes'] != 'None':
+        #         error = '"eosc_volumes" key does not define a list or "None" value'
+        # else:
+        #     error = 'unsopported type: "'+infra_type+'"'
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class ComputingInstanceViewSet(viewsets.ModelViewSet):
+    queryset = ComputingInstance.objects.all()
+    serializer_class = ComputingInstanceSerializer
+    permission_classes = [IsAuthenticated]
