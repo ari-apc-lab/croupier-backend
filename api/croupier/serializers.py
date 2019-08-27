@@ -14,7 +14,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Application
-        fields = ["name", "description", "owner"]
+        fields = ["id", "name", "description", "owner"]
 
 
 class AppInstanceSerializer(serializers.ModelSerializer):
@@ -23,7 +23,7 @@ class AppInstanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AppInstance
-        fields = ["name", "description", "owner", "app", "last_execution"]
+        fields = ["id", "name", "description", "owner", "app", "last_execution"]
 
 
 class DataCatalogueKeySerializer(serializers.ModelSerializer):
@@ -31,7 +31,7 @@ class DataCatalogueKeySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataCatalogueKey
-        fields = ["code", "owner"]
+        fields = ["id", "code", "owner"]
 
 
 class ComputingInfrastructureSerializer(serializers.ModelSerializer):
@@ -39,7 +39,15 @@ class ComputingInfrastructureSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ComputingInfrastructure
-        fields = ["name", "about_url", "owner", "infra_type", "interface", "definition"]
+        fields = [
+            "id",
+            "name",
+            "about_url",
+            "owner",
+            "infra_type",
+            "interface",
+            "definition",
+        ]
 
 
 class ComputingInstanceSerializer(serializers.ModelSerializer):
@@ -48,4 +56,4 @@ class ComputingInstanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ComputingInstance
-        fields = ["name", "owner", "infrastructure", "definition"]
+        fields = ["id", "name", "owner", "infrastructure", "definition"]
