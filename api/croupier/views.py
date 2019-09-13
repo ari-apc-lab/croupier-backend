@@ -174,7 +174,7 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
 
-    @action(methods=["post"], detail=True)
+    @action(detail=True)
     def events(self, request, pk=None):
         instance = self.get_object()
 
