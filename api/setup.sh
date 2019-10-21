@@ -1,20 +1,21 @@
 #!/bin/bash
 set -e
 
-yay -S miniconda3 --noconfirm
-sudo ln -s /opt/miniconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
-source /opt/miniconda3/etc/profile.d/conda.sh
-conda create -y -n hidalgo-api python=3.7
-conda init bash
-conda config --set auto_activate_base False
-conda activate hidalgo-api
+#yay -S miniconda3 --noconfirm
+#sudo ln -s /opt/miniconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+#source /opt/miniconda3/etc/profile.d/conda.sh
+#conda create -y -n hidalgo-api python=3.7
+#conda init bash
+#conda config --set auto_activate_base False
+#conda activate hidalgo-api
 pip install Django==2.2.3
 pip install djangorestframework==3.10.0
 pip install mozilla-django-oidc==1.2.2
 pip install cloudify-rest-client==4.3.1
 
 # Hack to be python3 compatible
-PYPKG=$(python -c "import sys; print(sys.path[-1])")
+#PYPKG=$(python -c "import sys; print(sys.path[-1])")
+PYPKG=/usr/local/lib/python3.6/dist-packages
 sed -i 's/import urlparse/#import urlparse/g' $PYPKG/cloudify_rest_client/*.py
 sed -i 's/urlparse\./urllib.parse./g' $PYPKG/cloudify_rest_client/*.py
 sed -i 's/urllib\.quote/urllib.parse.quote/g' $PYPKG/cloudify_rest_client/*.py

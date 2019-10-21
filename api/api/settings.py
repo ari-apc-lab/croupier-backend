@@ -25,7 +25,7 @@ SECRET_KEY = "wr7c=7b3b!(01%c+2%26o1f$ohd^g94%p29^i%g(*2&4+nyx=&"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["hidalgo-portal.hlrs.de"]
 
 
 # Application definition
