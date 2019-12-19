@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth.models import User
 
 from croupier.models import (
     Application,
@@ -10,7 +11,7 @@ from croupier.models import (
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
-    owner = serializers.PrimaryKeyRelatedField(read_only=True)
+    owner = serializers.SlugRelatedField(slug_field="username", queryset=User.objects.all())
 
     class Meta:
         model = Application

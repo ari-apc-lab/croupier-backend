@@ -1,6 +1,6 @@
 import json
 import tempfile
-
+import pdb
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -29,12 +29,16 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]  # TODO use roles
 
     def create(self, request, *args, **kwargs):
+        # Request is immutable by default
+        _mutable = request.data._mutable
+        request.data._mutable = True
         request.data["owner"] = request.user.username
+        request.data._mutable = _mutable
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         # create blueprint in cloudify
-        blueprint_package = request.data["blueprint_package"]
+        blueprint_package = request.data["blueprint"]
 
         tmp_package_file = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
         for chunk in blueprint_package.chunks():
@@ -97,6 +101,8 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         return AppInstance.objects.filter(owner=user)
 
     def create(self, request, *args, **kwargs):
+        print(request)
+        pdb.set_trace()
         request.data["owner"] = request.user
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

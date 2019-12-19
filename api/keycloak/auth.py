@@ -1,4 +1,5 @@
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
+import pdb
 
 
 class OIDCAuthBackend(OIDCAuthenticationBackend):
@@ -19,8 +20,11 @@ class OIDCAuthBackend(OIDCAuthenticationBackend):
 
     def create_user(self, claims):
         """Return object for a newly created user account."""
+        pdb.set_trace()
         email = claims.get("email")
-        username = self.get_username(claims)
+        # Not ideal, usernames could be reused FIXME
+        username = claims.get("preferred_username")
+        # username = self.get_username(claims)
         # TODO add other user information like roles?
         return self.UserModel.objects.create_user(username, email)
 
