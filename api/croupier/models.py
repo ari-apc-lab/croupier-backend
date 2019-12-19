@@ -20,11 +20,11 @@ LOGGER = logging.getLogger(__name__)
 class Application(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.CharField(max_length=256, null=True)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, to_field='username')
 
     @classmethod
     def create_blueprint_id(cls, name):
-        return name.lower().split().join("_")
+        return "_".join(name.lower().split())
 
     def blueprint_id(self):
         return Application.create_blueprint_id(self.name)

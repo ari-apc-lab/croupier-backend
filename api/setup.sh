@@ -11,11 +11,12 @@ set -e
 pip install Django==2.2.3
 pip install djangorestframework==3.10.0
 pip install mozilla-django-oidc==1.2.2
-pip install cloudify-rest-client==4.3.1
+#pip install cloudify-rest-client==4.3.1
+pip install django-cors-headers
 
 # Hack to be python3 compatible
 #PYPKG=$(python -c "import sys; print(sys.path[-1])")
-PYPKG=/usr/local/lib/python3.6/dist-packages
+PYPKG=venv/lib/python3.6/site-packages
 sed -i 's/import urlparse/#import urlparse/g' $PYPKG/cloudify_rest_client/*.py
 sed -i 's/urlparse\./urllib.parse./g' $PYPKG/cloudify_rest_client/*.py
 sed -i 's/urllib\.quote/urllib.parse.quote/g' $PYPKG/cloudify_rest_client/*.py

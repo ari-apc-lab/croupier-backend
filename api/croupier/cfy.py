@@ -39,6 +39,7 @@ def _get_client():
         username=settings.ORCHESTRATOR_USER,
         password=settings.ORCHESTRATOR_PASS,
         tenant=settings.ORCHESTRATOR_TENANT,
+        protocol="https"
     )
     return client
 

@@ -25,8 +25,8 @@ SECRET_KEY = "wr7c=7b3b!(01%c+2%26o1f$ohd^g94%p29^i%g(*2&4+nyx=&"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["hidalgo-portal.hlrs.de"]
-
+#ALLOWED_HOSTS = ["hidalgo-portal.hlrs.de", "localhost"]
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -41,11 +41,13 @@ INSTALLED_APPS = [
     "mozilla_django_oidc",  # Load after auth
     "croupier",
     "keycloak",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -146,3 +148,19 @@ ORCHESTRATOR_HOST = os.environ["ORCHESTRATOR_HOST"]
 ORCHESTRATOR_USER = os.environ["ORCHESTRATOR_USER"]
 ORCHESTRATOR_PASS = os.environ["ORCHESTRATOR_PASS"]
 ORCHESTRATOR_TENANT = os.environ["ORCHESTRATOR_TENANT"]
+
+CORS_ORIGIN_ALLOW_ALL = True
+LOGGING = {
+        'version': 1,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'loggers': {
+            'mozilla_django_oidc': {
+                'handlers': ['console'],
+                'level': DEBUG
+                },
+            },
+        }
