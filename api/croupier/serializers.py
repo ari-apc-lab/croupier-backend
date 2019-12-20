@@ -19,7 +19,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
 
 class AppInstanceSerializer(serializers.ModelSerializer):
-    owner = serializers.PrimaryKeyRelatedField(read_only=True)
+    owner = serializers.SlugRelatedField(slug_field="username", queryset=User.objects.all())
     app = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:

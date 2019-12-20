@@ -36,7 +36,7 @@ class Application(models.Model):
 class AppInstance(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.CharField(max_length=256, null=True)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, to_field='username')
     # inputs = models.TextField(null=True)
 
     app = models.ForeignKey(Application, on_delete=models.CASCADE)
