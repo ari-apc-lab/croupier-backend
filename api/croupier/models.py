@@ -42,6 +42,10 @@ class AppInstance(models.Model):
     app = models.ForeignKey(Application, on_delete=models.CASCADE)
     last_execution = models.CharField(max_length=50)
 
+    @classmethod
+    def create_deployment_id(cls, name):
+        return "_".join(name.lower().split())
+
 
 class DataCatalogueKey(models.Model):
     """ Data catalogue key model """
