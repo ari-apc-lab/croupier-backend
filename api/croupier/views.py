@@ -1,6 +1,7 @@
 import json
 import tempfile
 import pdb
+import yaml
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -84,10 +85,12 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         _, err = cfy.remove_blueprint(instance.blueprint_id())
+
+        # If there's a disparity between Django and Cloudify we should delete no matter what
+        self.perform_destroy(instance)
         if err:
             return Response(err, status=status.HTTP_409_CONFLICT)
 
-        self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -102,14 +105,22 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         request.data["owner"] = request.user
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
         blueprint_id = Application.create_blueprint_id(request.data["app"])
         deployment_id = AppInstance.create_deployment_id(request.data["name"])
         # create deployment in cloudify
+        tmp_package_file = tempfile.NamedTemporaryFile(suffix=".yaml", delete=False)
+        for chunk in request.data["inputs_file"].chunks():
+            tmp_package_file.write(chunk)
+        tmp_package_file.flush()
+
+        path = tmp_package_file.name
+        inputs = None
+        with open(path) as file:
+            inputs = yaml.load(file, Loader=yaml.FullLoader)
+
         _, err = cfy.create_deployment(
-            deployment_id, blueprint_id, request.data["inputs"]
+            blueprint_id, deployment_id, inputs
         )
 
         if err:
@@ -121,10 +132,18 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         if err:
             return Response(err, status=status.HTTP_409_CONFLICT)
 
-        serializer.data["last_execution"] = execution["id"]
+        request.data._mutable = True
+        request.data["last_execution"] = execution["id"]
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        # create deployment on database
-        self.perform_create(serializer)
+        # create deployment on database. If it were to fail, reverse the process on Cloudify
+        try:
+            self.perform_create(serializer)
+        except Exception:
+            cfy.execute_workflow(deployment_id, cfy.UNINSTALL)
+            cfy.destroy_deployment(deployment_id)
+            return Response(err, status=status.HTTP_409_CONFLICT)
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers

@@ -14,6 +14,8 @@ pip install mozilla-django-oidc==1.2.2
 #pip install cloudify-rest-client==4.3.1
 pip install django-cors-headers
 pip install uwsgi
+pip install pyyaml
+
 # Hack to be python3 compatible
 #PYPKG=$(python -c "import sys; print(sys.path[-1])")
 PYPKG=venv/lib/python3.6/site-packages
