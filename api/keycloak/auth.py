@@ -20,7 +20,6 @@ class OIDCAuthBackend(OIDCAuthenticationBackend):
 
     def create_user(self, claims):
         """Return object for a newly created user account."""
-        pdb.set_trace()
         email = claims.get("email")
         # Not ideal, usernames could be reused FIXME
         username = claims.get("preferred_username")

@@ -101,8 +101,6 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         return AppInstance.objects.filter(owner=user)
 
     def create(self, request, *args, **kwargs):
-        print(request)
-        pdb.set_trace()
         request.data["owner"] = request.user
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
