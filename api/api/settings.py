@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "mozilla_django_oidc",  # Load after auth
     "croupier",
-    "keycloak",
+    # "keycloak",
     "corsheaders",
 ]
 
@@ -138,7 +138,8 @@ REST_FRAMEWORK = {
     ]
 }
 
-AUTHENTICATION_BACKENDS = ("keycloak.auth.OIDCAuthBackend",)
+# AUTHENTICATION_BACKENDS = ("keycloak.auth.OIDCAuthBackend",)
+AUTHENTICATION_BACKENDS = ("mozilla_django_oidc.auth.OIDCAuthenticationBackend",)
 
 # AUTHENTICATION_BACKENDS = "api.keycloak.auth.OIDCAuthBackend"
 # OIDC_DRF_AUTH_BACKEND = "mozilla_django_oidc.auth.OIDCAuthenticationBackend"

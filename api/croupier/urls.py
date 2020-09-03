@@ -20,6 +20,6 @@ from rest_framework import routers
 from croupier.views import ApplicationViewSet, AppInstanceViewSet
 
 router = routers.DefaultRouter()
-router.register(r"apps", ApplicationViewSet, base_name="apps")
-router.register(r"instances", AppInstanceViewSet, base_name="instances")
+router.register(r"apps", ApplicationViewSet, basename="apps")
+router.register(r"instances", AppInstanceViewSet, basename="instances")
 urlpatterns = router.urls

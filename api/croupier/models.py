@@ -76,7 +76,7 @@ class ComputingInfrastructure(models.Model):
     TORQUE = "TORQUE"
     BASH = "BASH"
     INTERFACE_CHOICES = ((SLURM, "Slurm"), (TORQUE, "Torque"), (BASH, "Bash"))
-    interface = models.CharField(max_length=5, choices=INTERFACE_CHOICES)
+    interface = models.CharField(max_length=6, choices=INTERFACE_CHOICES)
 
     definition = models.TextField()
 
