@@ -20,11 +20,18 @@ LOGGER = logging.getLogger(__name__)
 class Application(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.CharField(max_length=256, null=True)
+    main_blueprint_file = models.CharField(max_length=50, unique=False)
+    created = models.DateTimeField()
+    updated = models.DateTimeField()
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, to_field='username')
 
     @classmethod
     def create_blueprint_id(cls, name):
         return "_".join(name.lower().split())
+
+    @classmethod
+    def getByName(cls, name):
+        return Application.objects.all().filter(name=name)[0]
 
     def blueprint_id(self):
         return Application.create_blueprint_id(self.name)
@@ -36,11 +43,13 @@ class Application(models.Model):
 class AppInstance(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.CharField(max_length=256, null=True)
+    created = models.DateTimeField()
+    updated = models.DateTimeField()
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, to_field='username')
     # inputs = models.TextField(null=True)
 
     app = models.ForeignKey(Application, on_delete=models.CASCADE)
-    last_execution = models.CharField(max_length=50)
+    last_execution = models.CharField(max_length=50, null=True)
 
     @classmethod
     def create_deployment_id(cls, name):

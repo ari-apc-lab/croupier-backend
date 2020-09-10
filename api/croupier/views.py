@@ -1,11 +1,16 @@
 import json
 import tempfile
-import pdb
+# import pdb
 import yaml
+import logging
+
+from django.http import JsonResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
+from django.contrib.auth.models import User
 
 from croupier import cfy
 from croupier.models import (
@@ -23,11 +28,65 @@ from croupier.serializers import (
     ComputingInstanceSerializer,
 )
 
+# Get an instance of a logger
+LOGGER = logging.getLogger(__name__)
+
+
+def serializeBlueprintList(blueprints):
+    data = []
+    for blueprint in blueprints:
+        entry = {
+            'name': blueprint["id"],
+            'description': blueprint["description"],
+            'created': blueprint["created_at"],
+            'updated': blueprint["updated_at"],
+            'owner': blueprint["created_by"],
+            'main_blueprint_file': blueprint["main_file_name"]}
+        data.append(entry)
+    return data
+
+
+def serializeDeploymentList(deployments):
+    data = []
+    for deployment in deployments:
+        entry = {
+            'name': deployment["id"],
+            'description': deployment["description"],
+            'created': deployment["created_at"],
+            'updated': deployment["updated_at"],
+            'owner': deployment["created_by"],
+            'blueprint': deployment["blueprint_id"]}
+        data.append(entry)
+    return data
+
+
+def synchronizeUserInModel(username):
+    # Check if user exist, if not create it
+    queryset = User.objects.all().filter(username=username)
+    if len(queryset) == 0:
+        user = User.objects.create_user(username=username,
+                                        email='not given',
+                                        password=username)
+
 
 class ApplicationViewSet(viewsets.ModelViewSet):
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated]  # TODO use roles
+
+    def list(self, request, *args, **kwargs):
+        LOGGER.info("Requesting the list of Applications")
+        blueprints = cfy.list_blueprints()
+        # Synchronize blueprints returned from Cloudify with the internal model database of apps
+        # For each returned blueprint, check if the blueprint exits in the internal database by name
+        # If not, create the app and store it in the database
+        # Rational: blueprints could be uploaded in Cloudify using its console, not necessarily using
+        # the Hidalgo frontend
+        data = serializeBlueprintList(blueprints[0])
+        self.synchronizeBlueprintListInModel(data)
+        apps = Application.objects.all()
+        serializer = ApplicationSerializer(apps, many=True)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         # Request is immutable by default
@@ -93,11 +152,38 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def synchronizeBlueprintListInModel(self, blueprints):
+        for blueprint in blueprints:
+            # Check if blueprint exists in apps data model
+            queryset = Application.objects.all().filter(name=blueprint['name'])
+            if len(queryset) == 0:
+                # If not, create an app from the blueprint and save it in the model
+                # create blueprint on database
+                # create user in user model if it does not exist
+                synchronizeUserInModel(blueprint["owner"])
+                serializer = self.get_serializer(data=blueprint)
+                if serializer.is_valid():
+                    self.perform_create(serializer)
+
 
 class AppInstanceViewSet(viewsets.ModelViewSet):
     queryset = AppInstance.objects.all()
     serializer_class = AppInstanceSerializer
     permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        LOGGER.info("Requesting the list of Instances")
+        deployments = cfy.list_deployments()
+        # Synchronize deployments returned from Cloudify with the internal model database of application instances
+        # For each returned deployment, check if the deployment exits in the internal database by name
+        # If not, create the app and store it in the database
+        # Rational: deployments could be created in Cloudify using its console, not necessarily using
+        # the Hidalgo frontend
+        data = serializeDeploymentList(deployments[0])
+        self.synchronizeDeploymentListInModel(data)
+        instances = AppInstance.objects.all()
+        serializer = AppInstanceSerializer(instances, many=True)
+        return Response(serializer.data)
 
     def get_queryset(self):
         user = self.request.user
@@ -228,6 +314,21 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def synchronizeDeploymentListInModel(self, deployments):
+        for deployment in deployments:
+            # Check if deployment exists in apps data model
+            queryset = AppInstance.objects.all().filter(name=deployment['name'])
+            if len(queryset) == 0:
+                # If not, create an app from the deployment and save it in the model
+                # create deployment on database
+                # create user in user model if it does not exist
+                synchronizeUserInModel(deployment["owner"])
+                # get associated app
+                app = Application.getByName(deployment["blueprint"])
+                serializer = self.get_serializer(data=deployment)
+                if serializer.is_valid():
+                    serializer.save(app=app)
 
 
 class DataCatalogueKeyViewSet(viewsets.ModelViewSet):

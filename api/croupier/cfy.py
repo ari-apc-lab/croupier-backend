@@ -108,7 +108,20 @@ def remove_blueprint(blueprint_id):
         LOGGER.exception(err)
         error = str(err)
 
-    return (blueprint, error)
+    return blueprint, error
+
+
+def list_deployments():
+    error = None
+    deployments = None
+    client = _get_client()
+    try:
+        deployments = client.deployments.list().items
+    except CloudifyClientError as err:
+        LOGGER.exception(err)
+        error = str(err)
+
+    return deployments, error
 
 
 def create_deployment(blueprint_id, instance_id, inputs):

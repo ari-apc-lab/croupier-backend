@@ -15,7 +15,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Application
-        fields = ["id", "name", "description", "owner"]
+        fields = ["id", "name", "description", "owner", "main_blueprint_file", "created", "updated"]
 
 
 class AppInstanceSerializer(serializers.ModelSerializer):
@@ -24,7 +24,7 @@ class AppInstanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AppInstance
-        fields = ["id", "name", "description", "owner", "app", "last_execution"]
+        fields = ["id", "name", "description", "owner", "created", "updated", "app", "last_execution"]
 
 
 class DataCatalogueKeySerializer(serializers.ModelSerializer):
