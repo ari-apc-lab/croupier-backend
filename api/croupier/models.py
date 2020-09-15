@@ -55,6 +55,9 @@ class AppInstance(models.Model):
     def create_deployment_id(cls, name):
         return "_".join(name.lower().split())
 
+    def deployment_id(self):
+        return self.name
+
 
 class DataCatalogueKey(models.Model):
     """ Data catalogue key model """

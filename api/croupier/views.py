@@ -151,16 +151,22 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def synchronizeBlueprintListInModel(self, blueprints):
-        # Delete list of blueprints
-        Application.objects.all().delete()
         for blueprint in blueprints:
-            # create an app from the blueprint and save it in the model
-            # create blueprint on database
-            # create user in user model if it does not exist
-            synchronizeUserInModel(blueprint["owner"])
-            serializer = self.get_serializer(data=blueprint)
-            if serializer.is_valid():
-                self.perform_create(serializer)
+            # Check if blueprint exists in apps data model
+            queryset = Application.objects.all().filter(name=blueprint['name'])
+            if len(queryset) == 0:
+                # If not, create an app from the blueprint and save it in the model
+                # create blueprint on database
+                # create user in user model if it does not exist
+                synchronizeUserInModel(blueprint["owner"])
+                serializer = self.get_serializer(data=blueprint)
+                if serializer.is_valid():
+                    self.perform_create(serializer)
+
+    @action(detail=False)
+    def reset(self, request, *args, **kwargs):
+        Application.objects.all().delete()
+        return Response("Applications (Blueprints) reset in database", status=status.HTTP_200_OK)
 
 
 class AppInstanceViewSet(viewsets.ModelViewSet):
@@ -222,7 +228,6 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
             request.data["last_execution"] = execution["id"]
             request.data["created"] = execution["created_at"]
             request.data["updated"] = execution["created_at"]
-            request.data["owner"] = execution["created_by"]
             request.data["description"] = None
             app = Application.getByName(request.data["app"])
             serializer = self.get_serializer(data=request.data)
@@ -259,7 +264,8 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
 
     @action(methods=["post"], detail=True)
     def execute(self, request, pk=None):
-        instance = self.get_object()
+        # instance = self.get_object()
+        instance = AppInstance.objects.get(pk=pk)
 
         if instance.owner != request.user:
             return Response(status=status.HTTP_403_FORBIDDEN)
@@ -318,18 +324,24 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def synchronizeDeploymentListInModel(self, deployments):
-        # delete all deployments
-        AppInstance.objects.all().delete()
         for deployment in deployments:
-            # create an app from the deployment and save it in the model
-            # create deployment on database
-            # create user in user model if it does not exist
-            synchronizeUserInModel(deployment["owner"])
-            # get associated app
-            app = Application.getByName(deployment["blueprint"])
-            serializer = self.get_serializer(data=deployment)
-            if serializer.is_valid():
-                serializer.save(app=app)
+            # Check if deployment exists in apps data model
+            queryset = AppInstance.objects.all().filter(name=deployment['name'])
+            if len(queryset) == 0:
+                # If not, create an app from the deployment and save it in the model
+                # create deployment on database
+                # create user in user model if it does not exist
+                synchronizeUserInModel(deployment["owner"])
+                # get associated app
+                app = Application.getByName(deployment["blueprint"])
+                serializer = self.get_serializer(data=deployment)
+                if serializer.is_valid():
+                    serializer.save(app=app)
+
+    @action(detail=False)
+    def reset(self, request, *args, **kwargs):
+        AppInstance.objects.all().delete()
+        return Response("App instances (Deployments) reset in database", status=status.HTTP_200_OK)
 
 
 class DataCatalogueKeyViewSet(viewsets.ModelViewSet):
