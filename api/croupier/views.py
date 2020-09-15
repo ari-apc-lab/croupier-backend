@@ -78,9 +78,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         LOGGER.info("Requesting the list of Applications")
         blueprints = cfy.list_blueprints()
         # Synchronize blueprints returned from Cloudify with the internal model database of apps
-        # For each returned blueprint, check if the blueprint exits in the internal database by name
-        # If not, create the app and store it in the database
-        # Rational: blueprints could be uploaded in Cloudify using its console, not necessarily using
+        # Rational: blueprints could be uploaded/removed in Cloudify using its console, not necessarily using
         # the Hidalgo frontend
         data = serializeBlueprintList(blueprints[0])
         self.synchronizeBlueprintListInModel(data)
@@ -153,17 +151,16 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def synchronizeBlueprintListInModel(self, blueprints):
+        # Delete list of blueprints
+        Application.objects.all().delete()
         for blueprint in blueprints:
-            # Check if blueprint exists in apps data model
-            queryset = Application.objects.all().filter(name=blueprint['name'])
-            if len(queryset) == 0:
-                # If not, create an app from the blueprint and save it in the model
-                # create blueprint on database
-                # create user in user model if it does not exist
-                synchronizeUserInModel(blueprint["owner"])
-                serializer = self.get_serializer(data=blueprint)
-                if serializer.is_valid():
-                    self.perform_create(serializer)
+            # create an app from the blueprint and save it in the model
+            # create blueprint on database
+            # create user in user model if it does not exist
+            synchronizeUserInModel(blueprint["owner"])
+            serializer = self.get_serializer(data=blueprint)
+            if serializer.is_valid():
+                self.perform_create(serializer)
 
 
 class AppInstanceViewSet(viewsets.ModelViewSet):
@@ -190,14 +187,16 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         return AppInstance.objects.filter(owner=user)
 
     def create(self, request, *args, **kwargs):
-        request.data["owner"] = request.user
+        request.data._mutable = True
+        request.data["owner"] = request.user.username
 
-        blueprint_id = Application.create_blueprint_id(request.data["app"])
-        deployment_id = AppInstance.create_deployment_id(request.data["name"])
+        blueprint_id = request.data["app"]
+        deployment_id = request.data["name"]
         # create deployment in cloudify
         tmp_package_file = tempfile.NamedTemporaryFile(suffix=".yaml", delete=False)
-        for chunk in request.data["inputs_file"].chunks():
-            tmp_package_file.write(chunk)
+        # for chunk in request.data["inputs_file"].chunks():
+        #     tmp_package_file.write(chunk)
+        tmp_package_file.write(str.encode(request.data["inputs_file"]))
         tmp_package_file.flush()
 
         path = tmp_package_file.name
@@ -218,18 +217,21 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         if err:
             return Response(err, status=status.HTTP_409_CONFLICT)
 
-        request.data._mutable = True
-        request.data["last_execution"] = execution["id"]
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
         # create deployment on database. If it were to fail, reverse the process on Cloudify
         try:
-            self.perform_create(serializer)
-        except Exception:
+            request.data["last_execution"] = execution["id"]
+            request.data["created"] = execution["created_at"]
+            request.data["updated"] = execution["created_at"]
+            request.data["owner"] = execution["created_by"]
+            request.data["description"] = None
+            app = Application.getByName(request.data["app"])
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(app=app)
+        except Exception as ex:
             cfy.execute_workflow(deployment_id, cfy.UNINSTALL)
             cfy.destroy_deployment(deployment_id)
-            return Response(err, status=status.HTTP_409_CONFLICT)
+            return Response(ex, status=status.HTTP_409_CONFLICT)
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
@@ -316,19 +318,18 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def synchronizeDeploymentListInModel(self, deployments):
+        # delete all deployments
+        AppInstance.objects.all().delete()
         for deployment in deployments:
-            # Check if deployment exists in apps data model
-            queryset = AppInstance.objects.all().filter(name=deployment['name'])
-            if len(queryset) == 0:
-                # If not, create an app from the deployment and save it in the model
-                # create deployment on database
-                # create user in user model if it does not exist
-                synchronizeUserInModel(deployment["owner"])
-                # get associated app
-                app = Application.getByName(deployment["blueprint"])
-                serializer = self.get_serializer(data=deployment)
-                if serializer.is_valid():
-                    serializer.save(app=app)
+            # create an app from the deployment and save it in the model
+            # create deployment on database
+            # create user in user model if it does not exist
+            synchronizeUserInModel(deployment["owner"])
+            # get associated app
+            app = Application.getByName(deployment["blueprint"])
+            serializer = self.get_serializer(data=deployment)
+            if serializer.is_valid():
+                serializer.save(app=app)
 
 
 class DataCatalogueKeyViewSet(viewsets.ModelViewSet):
