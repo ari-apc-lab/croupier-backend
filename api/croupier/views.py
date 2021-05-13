@@ -193,6 +193,15 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         return AppInstance.objects.filter(owner=user)
 
     def create(self, request, *args, **kwargs):
+        # Check Application Instance with given name does not exist. Otherwise reject creation
+        try:
+            instance = AppInstance.getByName(request.data["name"])
+            if instance is not None:
+                return Response("Application instance with name {} already created".format(request.data["name"]),
+                            status=status.HTTP_409_CONFLICT)
+        except Exception as ex:
+            pass # Instance does not exist, proceeding with creation
+
         request.data._mutable = True
         request.data["owner"] = request.user.username
 

@@ -55,6 +55,10 @@ class AppInstance(models.Model):
     def create_deployment_id(cls, name):
         return "_".join(name.lower().split())
 
+    @classmethod
+    def getByName(cls, name):
+        return AppInstance.objects.all().filter(name=name)[0]
+
     def deployment_id(self):
         return self.name
 
