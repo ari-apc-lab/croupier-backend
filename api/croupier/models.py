@@ -22,8 +22,11 @@ class Application(models.Model):
     description = models.CharField(max_length=256, null=True)
     main_blueprint_file = models.CharField(max_length=50, unique=False)
     created = models.DateTimeField()
+    included = models.DateTimeField()
     updated = models.DateTimeField()
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, to_field='username')
+    is_new = models.BooleanField(default=False)
+    is_updated = models.BooleanField(default=False)
 
     @classmethod
     def create_blueprint_id(cls, name):
@@ -50,6 +53,7 @@ class AppInstance(models.Model):
 
     app = models.ForeignKey(Application, on_delete=models.CASCADE)
     last_execution = models.CharField(max_length=50, null=True)
+    is_new = models.BooleanField(default=False)
 
     @classmethod
     def create_deployment_id(cls, name):
