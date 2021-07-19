@@ -12,15 +12,15 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 
-from croupier import cfy
-from croupier.models import (
+from api.croupier import cfy
+from api.croupier.models import (
     Application,
     AppInstance,
     DataCatalogueKey,
     ComputingInfrastructure,
     ComputingInstance,
 )
-from croupier.serializers import (
+from api.croupier.serializers import (
     ApplicationSerializer,
     AppInstanceSerializer,
     DataCatalogueKeySerializer,
@@ -39,8 +39,11 @@ def serializeBlueprintList(blueprints):
             'name': blueprint["id"],
             'description': blueprint["description"],
             'created': blueprint["created_at"],
+            'included': blueprint["included_at"],
             'updated': blueprint["updated_at"],
             'owner': blueprint["created_by"],
+            'is_new': blueprint["is_new"],
+            'is_updated': blueprint["is_updated"],
             'main_blueprint_file': blueprint["main_file_name"]}
         data.append(entry)
     return data
@@ -55,6 +58,7 @@ def serializeDeploymentList(deployments):
             'created': deployment["created_at"],
             'updated': deployment["updated_at"],
             'owner': deployment["created_by"],
+            'is_new': deployment["is_new"],
             'blueprint': deployment["blueprint_id"]}
         data.append(entry)
     return data

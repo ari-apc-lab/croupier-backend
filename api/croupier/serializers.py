@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
-from croupier.models import (
+from api.croupier.models import (
     Application,
     AppInstance,
     ComputingInfrastructure,
@@ -15,7 +15,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Application
-        fields = ["id", "name", "description", "owner", "main_blueprint_file", "created", "updated"]
+        fields = ["id", "name", "description", "owner", "main_blueprint_file", "created", "included", "updated",
+                  "is_new", "is_updated"]
 
 
 class AppInstanceSerializer(serializers.ModelSerializer):
@@ -24,7 +25,7 @@ class AppInstanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AppInstance
-        fields = ["id", "name", "description", "owner", "created", "updated", "app", "last_execution"]
+        fields = ["id", "name", "description", "owner", "created", "updated", "app", "last_execution", "is_new"]
 
 
 class DataCatalogueKeySerializer(serializers.ModelSerializer):
