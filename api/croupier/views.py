@@ -11,6 +11,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+from django.utils.dateparse import parse_datetime
+
+from datetime import *
 
 from api.croupier import cfy
 from api.croupier.models import (
@@ -32,18 +35,15 @@ from api.croupier.serializers import (
 LOGGER = logging.getLogger(__name__)
 
 
-def serializeBlueprintList(blueprints):
+def serialize_blueprint_list(blueprints):
     data = []
     for blueprint in blueprints:
         entry = {
             'name': blueprint["id"],
             'description': blueprint["description"],
             'created': blueprint["created_at"],
-            'included': blueprint["included_at"],
             'updated': blueprint["updated_at"],
             'owner': blueprint["created_by"],
-            'is_new': blueprint["is_new"],
-            'is_updated': blueprint["is_updated"],
             'main_blueprint_file': blueprint["main_file_name"]}
         data.append(entry)
     return data
@@ -58,13 +58,12 @@ def serializeDeploymentList(deployments):
             'created': deployment["created_at"],
             'updated': deployment["updated_at"],
             'owner': deployment["created_by"],
-            'is_new': deployment["is_new"],
             'blueprint': deployment["blueprint_id"]}
         data.append(entry)
     return data
 
 
-def synchronizeUserInModel(username):
+def synchronize_user_in_model(username):
     # Check if user exist, if not create it
     queryset = User.objects.all().filter(username=username)
     if len(queryset) == 0:
@@ -84,8 +83,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         # Synchronize blueprints returned from Cloudify with the internal model database of apps
         # Rational: blueprints could be uploaded/removed in Cloudify using its console, not necessarily using
         # the Hidalgo frontend
-        data = serializeBlueprintList(blueprints[0])
-        self.synchronizeBlueprintListInModel(data)
+        data = serialize_blueprint_list(blueprints[0])
+        self.synchronize_blueprint_list_in_model(data)
         apps = Application.objects.all()
         serializer = ApplicationSerializer(apps, many=True)
         return Response(serializer.data)
@@ -154,7 +153,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def synchronizeBlueprintListInModel(self, blueprints):
+    def synchronize_blueprint_list_in_model(self, blueprints):
         for blueprint in blueprints:
             # Check if blueprint exists in apps data model
             queryset = Application.objects.all().filter(name=blueprint['name'])
@@ -162,10 +161,47 @@ class ApplicationViewSet(viewsets.ModelViewSet):
                 # If not, create an app from the blueprint and save it in the model
                 # create blueprint on database
                 # create user in user model if it does not exist
-                synchronizeUserInModel(blueprint["owner"])
-                serializer = self.get_serializer(data=blueprint)
+                synchronize_user_in_model(blueprint["owner"])
+                bp_name = blueprint["name"]
+                bp_descr = blueprint["description"]
+                bp_file = blueprint["main_blueprint_file"]
+                bp_owner = "admin"
+                bp_updated = parse_datetime(blueprint["updated"])
+                bp_created = parse_datetime(blueprint["created"])
+                bp_included = date.today()
+                bp_is_new = True
+                bp_is_updated = False
+                new_blueprint = Application(name=bp_name, description=bp_descr, main_blueprint_file=bp_file,
+                                            created=bp_created, included=bp_included, updated=bp_updated,
+                                            owner=bp_owner, is_new=bp_is_new, is_updated=bp_is_updated)
+                serializer = self.get_serializer(data=new_blueprint)
                 if serializer.is_valid():
                     self.perform_create(serializer)
+            else:
+                # Check if the blueprint cannot be considered 'new' anymore (new < 10 days) or if it was updated
+                actual_object = queryset[0]
+                inclusion_date = actual_object.included
+                update_date = actual_object.updated
+                today_date = date.today()
+                is_change = False
+
+                # Change status from new to not new?
+                if (inclusion_date + timedelta(days=10)) > today_date:
+                    actual_object.is_new = False
+                    is_change = True
+
+                # Update fields if it was updated in the Cloudify instance
+                if update_date < datetime.strptime(blueprint["updated"]):
+                    actual_object.is_updated = True
+                    actual_object.description = blueprint["description"]
+                    actual_object.main_blueprint_file = blueprint["main_blueprint_file"]
+                    is_change = True
+
+                # Update the blueprint information in the model (if there are changes)
+                if is_change:
+                    serializer = self.get_serializer(data=actual_object)
+                    if serializer.is_valid():
+                        self.perform_update(serializer)
 
     @action(detail=False)
     def reset(self, request, *args, **kwargs):
@@ -344,7 +380,7 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
                 # If not, create an app from the deployment and save it in the model
                 # create deployment on database
                 # create user in user model if it does not exist
-                synchronizeUserInModel(deployment["owner"])
+                synchronize_user_in_model(deployment["owner"])
                 # get associated app
                 app = Application.getByName(deployment["blueprint"])
                 serializer = self.get_serializer(data=deployment)
