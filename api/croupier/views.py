@@ -46,6 +46,7 @@ def serialize_blueprint_list(blueprints):
             'owner': blueprint["created_by"],
             'main_blueprint_file': blueprint["main_file_name"]}
         data.append(entry)
+        LOGGER.info("Blueprint received: " + str(entry))
     return data
 
 
@@ -80,6 +81,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         LOGGER.info("Requesting the list of Applications")
         blueprints = cfy.list_blueprints()
+        LOGGER.info("Received from Cloudify: " + str(blueprints))
         # Synchronize blueprints returned from Cloudify with the internal model database of apps
         # Rational: blueprints could be uploaded/removed in Cloudify using its console, not necessarily using
         # the Hidalgo frontend
@@ -154,10 +156,24 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def synchronize_blueprint_list_in_model(self, blueprints):
+        LOGGER.info("Number of blueprints found: " + str(len(blueprints)))
+
+        # Take the full list of blueprints in the DDBB and check which ones should be removed
+        # This is crucial, since blueprints in the DDBB, not present in Cloudify would fail execution
+        all_internal_apps = Application.objects.all()
+        for internal_app in all_internal_apps:
+            app_found = any(internal_app.name in blueprint_properties for blueprint_properties in blueprints)
+            if not app_found:
+                LOGGER.info("Remove blueprint: " + str(internal_app))
+                serializer = self.get_serializer(data=internal_app)
+                if serializer.is_valid():
+                    self.perform_destroy(serializer)
+
+        # Go through the complete list of the orchestrator, in order to add and/or modify blueprints
         for blueprint in blueprints:
             # Check if blueprint exists in apps data model
             queryset = Application.objects.all().filter(name=blueprint['name'])
-            LOGGER.info(len(queryset))
+
             if len(queryset) == 0:
                 # If not, create an app from the blueprint and save it in the model
                 # create blueprint on database
@@ -175,7 +191,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
                 new_blueprint = Application(name=bp_name, description=bp_descr, main_blueprint_file=bp_file,
                                             created=bp_created, included=bp_included, updated=bp_updated,
                                             owner=bp_owner, is_new=bp_is_new, is_updated=bp_is_updated)
-                LOGGER.info(new_blueprint)
+                LOGGER.info("Add blueprint: " + str(new_blueprint))
                 serializer = self.get_serializer(data=new_blueprint)
                 if serializer.is_valid():
                     self.perform_create(serializer)
@@ -204,6 +220,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
                     serializer = self.get_serializer(data=actual_object)
                     if serializer.is_valid():
                         self.perform_update(serializer)
+                        LOGGER.info("Updated blueprint: " + actual_object.name)
 
     @action(detail=False)
     def reset(self, request, *args, **kwargs):
