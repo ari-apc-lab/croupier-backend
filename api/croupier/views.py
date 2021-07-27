@@ -15,15 +15,15 @@ from django.utils.dateparse import parse_datetime
 
 from datetime import *
 
-from api.croupier import cfy
-from api.croupier.models import (
+from croupier import cfy
+from croupier.models import (
     Application,
     AppInstance,
     DataCatalogueKey,
     ComputingInfrastructure,
     ComputingInstance,
 )
-from api.croupier.serializers import (
+from croupier.serializers import (
     ApplicationSerializer,
     AppInstanceSerializer,
     DataCatalogueKeySerializer,
@@ -157,6 +157,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         for blueprint in blueprints:
             # Check if blueprint exists in apps data model
             queryset = Application.objects.all().filter(name=blueprint['name'])
+            LOGGER.info(len(queryset))
             if len(queryset) == 0:
                 # If not, create an app from the blueprint and save it in the model
                 # create blueprint on database
@@ -174,6 +175,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
                 new_blueprint = Application(name=bp_name, description=bp_descr, main_blueprint_file=bp_file,
                                             created=bp_created, included=bp_included, updated=bp_updated,
                                             owner=bp_owner, is_new=bp_is_new, is_updated=bp_is_updated)
+                LOGGER.info(new_blueprint)
                 serializer = self.get_serializer(data=new_blueprint)
                 if serializer.is_valid():
                     self.perform_create(serializer)

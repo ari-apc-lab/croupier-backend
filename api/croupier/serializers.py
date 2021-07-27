@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
-from api.croupier.models import (
+from croupier.models import (
     Application,
     AppInstance,
     ComputingInfrastructure,

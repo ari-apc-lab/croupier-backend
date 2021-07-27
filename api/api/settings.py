@@ -153,17 +153,31 @@ ORCHESTRATOR_TENANT = os.environ["ORCHESTRATOR_TENANT"]
 CORS_ORIGIN_ALLOW_ALL = True
 LOGGING = {
         'version': 1,
+        'disable_existing_loggers': False,
         'handlers': {
             'console': {
                 'class': 'logging.StreamHandler',
-            },
+                'level': 'INFO'
+            }
         },
         'loggers': {
             'mozilla_django_oidc': {
                 'handlers': ['console'],
-                'level': DEBUG
+                'level': 'DEBUG'
                 },
-            },
+
+            'django': {
+                'handlers': ['console'],
+                'level': 'INFO',
+                'propagate': True,
+                },
+
+            'croupier': {
+                'handlers': ['console'],
+                'level': 'INFO',
+                'propagate': True,
+                }
+            }
         }
 
 STATIC_ROOT = os.path.join(BASE_DIR, "static/")
