@@ -1,0 +1,20 @@
+# Use official Python Image
+FROM python:3
+
+# Send Python output directly to the terminal
+ENV PYTHONUNBUFFERED=1
+
+# Create root directory of our backend and set it as working directory
+RUN mkdir /backend
+WORKDIR /backend
+
+# Copy the current folder, archives and directories, to the working directory
+ADD . /backend/
+
+# Install needed packages for the Python environment
+RUN pip install -r requirements.txt
+RUN python -m pip install git+https://github.com/cloudify-cosmo/cloudify-common.git
+
+# Expose port
+EXPOSE 80
+EXPOSE 443

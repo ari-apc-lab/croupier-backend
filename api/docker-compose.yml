@@ -1,0 +1,29 @@
+version: '3'
+   
+services: 
+  
+  web:
+    environment:
+      - OIDC_RP_CLIENT_ID=${OIDC_RP_CLIENT_ID}
+      - OIDC_RP_CLIENT_SECRET=${OIDC_RP_CLIENT_SECRET}
+      - KEYCLOAK_URL=${KEYCLOAK_URL}
+      - OIDC_OP_AUTHORIZATION_ENDPOINT=${OIDC_OP_AUTHORIZATION_ENDPOINT}
+      - OIDC_OP_TOKEN_ENDPOINT=${OIDC_OP_TOKEN_ENDPOINT}
+      - OIDC_OP_USER_ENDPOINT=${OIDC_OP_USER_ENDPOINT}
+      - ORCHESTRATOR_HOST=${ORCHESTRATOR_HOST}
+      - ORCHESTRATOR_USER=${ORCHESTRATOR_USER}
+      - ORCHESTRATOR_PASS=${ORCHESTRATOR_PASS}
+      - ORCHESTRATOR_TENANT=${ORCHESTRATOR_TENANT}
+    build: .
+    command: bash -c "python manage.py makemigrations && python manage.py migrate && python manage.py runserver 0.0.0.0:80"
+    container_name: backend_service
+    volumes:
+      - .:/backend
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - backend
+      
+networks:
+  backend:
