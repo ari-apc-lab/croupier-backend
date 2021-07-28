@@ -46,7 +46,7 @@ def serialize_blueprint_list(blueprints):
             'owner': blueprint["created_by"],
             'main_blueprint_file': blueprint["main_file_name"]}
         data.append(entry)
-        LOGGER.info("Blueprint received: " + str(entry))
+        # LOGGER.info("Blueprint received: " + str(entry))
     return data
 
 
@@ -71,6 +71,11 @@ def synchronize_user_in_model(username):
         user = User.objects.create_user(username=username,
                                         email='not given',
                                         password=username)
+        LOGGER.info("User Created: " + str(user))
+        return user
+    else:
+        LOGGER.info("User " + username + " found!")
+        return queryset[0]
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
@@ -81,13 +86,14 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         LOGGER.info("Requesting the list of Applications")
         blueprints = cfy.list_blueprints()
-        LOGGER.info("Received from Cloudify: " + str(blueprints))
+
         # Synchronize blueprints returned from Cloudify with the internal model database of apps
         # Rational: blueprints could be uploaded/removed in Cloudify using its console, not necessarily using
         # the Hidalgo frontend
         data = serialize_blueprint_list(blueprints[0])
         self.synchronize_blueprint_list_in_model(data)
         apps = Application.objects.all()
+        LOGGER.info("Number of apps to send: " + str(len(apps)))
         serializer = ApplicationSerializer(apps, many=True)
         return Response(serializer.data)
 
@@ -162,12 +168,10 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         # This is crucial, since blueprints in the DDBB, not present in Cloudify would fail execution
         all_internal_apps = Application.objects.all()
         for internal_app in all_internal_apps:
-            app_found = any(internal_app.name in blueprint_properties for blueprint_properties in blueprints)
+            app_found = any(internal_app.name in str(blueprint_properties) for blueprint_properties in blueprints)
             if not app_found:
                 LOGGER.info("Remove blueprint: " + str(internal_app))
-                serializer = self.get_serializer(data=internal_app)
-                if serializer.is_valid():
-                    self.perform_destroy(serializer)
+                internal_app.delete()
 
         # Go through the complete list of the orchestrator, in order to add and/or modify blueprints
         for blueprint in blueprints:
@@ -179,48 +183,44 @@ class ApplicationViewSet(viewsets.ModelViewSet):
                 # create blueprint on database
                 # create user in user model if it does not exist
                 synchronize_user_in_model(blueprint["owner"])
-                bp_name = blueprint["name"]
-                bp_descr = blueprint["description"]
-                bp_file = blueprint["main_blueprint_file"]
-                bp_owner = "admin"
-                bp_updated = parse_datetime(blueprint["updated"])
-                bp_created = parse_datetime(blueprint["created"])
-                bp_included = date.today()
-                bp_is_new = True
-                bp_is_updated = False
-                new_blueprint = Application(name=bp_name, description=bp_descr, main_blueprint_file=bp_file,
-                                            created=bp_created, included=bp_included, updated=bp_updated,
-                                            owner=bp_owner, is_new=bp_is_new, is_updated=bp_is_updated)
-                LOGGER.info("Add blueprint: " + str(new_blueprint))
-                serializer = self.get_serializer(data=new_blueprint)
+                blueprint.update({"included": str(datetime.now(timezone.utc))})
+                blueprint.update({"is_new": "True"})
+                blueprint.update({"is_updated": "False"})
+                LOGGER.info("Add blueprint: " + str(blueprint))
+
+                serializer = self.get_serializer(data=blueprint)
                 if serializer.is_valid():
                     self.perform_create(serializer)
+                    LOGGER.info("Application added!")
+                else:
+                    LOGGER.info(str(serializer.errors))
             else:
                 # Check if the blueprint cannot be considered 'new' anymore (new < 10 days) or if it was updated
                 actual_object = queryset[0]
                 inclusion_date = actual_object.included
                 update_date = actual_object.updated
-                today_date = date.today()
+                today_date = datetime.now(timezone.utc)
                 is_change = False
 
                 # Change status from new to not new?
-                if (inclusion_date + timedelta(days=10)) > today_date:
+                if actual_object.is_new and (inclusion_date + timedelta(days=10)) < today_date:
                     actual_object.is_new = False
                     is_change = True
+                    LOGGER.info("Blueprint not new anymore.")
 
                 # Update fields if it was updated in the Cloudify instance
-                if update_date < datetime.strptime(blueprint["updated"]):
+                if update_date < datetime.strptime(blueprint["updated"], "%Y-%m-%dT%H:%M:%S.%f%z"):
                     actual_object.is_updated = True
                     actual_object.description = blueprint["description"]
                     actual_object.main_blueprint_file = blueprint["main_blueprint_file"]
+                    actual_object.updated = blueprint["updated"]
                     is_change = True
+                    LOGGER.info("Blueprint updated.")
 
                 # Update the blueprint information in the model (if there are changes)
                 if is_change:
-                    serializer = self.get_serializer(data=actual_object)
-                    if serializer.is_valid():
-                        self.perform_update(serializer)
-                        LOGGER.info("Updated blueprint: " + actual_object.name)
+                    actual_object.save()
+                    LOGGER.info("Updated blueprint info: " + actual_object.name)
 
     @action(detail=False)
     def reset(self, request, *args, **kwargs):
