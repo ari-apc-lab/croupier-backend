@@ -97,7 +97,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         name_filter = self.request.query_params.get('name')
         LOGGER.info("Name filter: " + str(name_filter))
         if name_filter is not None:
-            apps = Application.objects.all().filter(name=name_filter)
+            apps = Application.objects.all().filter(name__icontains=name_filter)
             LOGGER.info("Number of apps to send: " + str(len(apps)))
         else:
             apps = Application.objects.all()
