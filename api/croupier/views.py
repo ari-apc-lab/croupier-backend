@@ -50,7 +50,7 @@ def serialize_blueprint_list(blueprints):
     return data
 
 
-def serializeDeploymentList(deployments):
+def serialize_deployment_list(deployments):
     data = []
     for deployment in deployments:
         entry = {
@@ -257,8 +257,8 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         # If not, create the app and store it in the database
         # Rational: deployments could be created in Cloudify using its console, not necessarily using
         # the Hidalgo frontend
-        data = serializeDeploymentList(deployments[0])
-        self.synchronizeDeploymentListInModel(data)
+        data = serialize_deployment_list(deployments[0])
+        self.synchronize_deployment_list_in_model(data)
         instances = AppInstance.objects.all()
         serializer = AppInstanceSerializer(instances, many=True)
         return Response(serializer.data)
@@ -407,20 +407,68 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def synchronizeDeploymentListInModel(self, deployments):
+    def synchronize_deployment_list_in_model(self, deployments):
+        LOGGER.info("Number of deployments found: " + str(len(deployments)))
+
+        # Take the full list of deployments in the DDBB and check which ones should be removed
+        # This is crucial, since deployments in the DDBB, not present in Cloudify would fail execution
+        all_internal_instances = AppInstance.objects.all()
+        for internal_app_instance in all_internal_instances:
+            app_instance_found = any(internal_app_instance.name in str(deployment_properties) for deployment_properties
+                                     in deployments)
+            if not app_instance_found:
+                LOGGER.info("Remove deployment: " + str(internal_app_instance))
+                internal_app_instance.delete()
+
+        # Go through the complete list of the orchestrator, in order to add and/or modify deployments
         for deployment in deployments:
-            # Check if deployment exists in apps data model
+            # Check if blueprint exists in apps data model
             queryset = AppInstance.objects.all().filter(name=deployment['name'])
+
             if len(queryset) == 0:
-                # If not, create an app from the deployment and save it in the model
+                # If not, create an appInstance from the deployment and save it in the model
                 # create deployment on database
                 # create user in user model if it does not exist
                 synchronize_user_in_model(deployment["owner"])
+
+                # Link with the corresponding blueprint
                 # get associated app
                 app = Application.getByName(deployment["blueprint"])
+                deployment.update({"is_new": "True"})
+                LOGGER.info("Add deployment: " + str(deployment))
+
                 serializer = self.get_serializer(data=deployment)
                 if serializer.is_valid():
                     serializer.save(app=app)
+                    LOGGER.info("Application Instance added!")
+                else:
+                    LOGGER.info(str(serializer.errors))
+            else:
+                # Check if the deployment cannot be considered 'new' anymore (new < 10 days) or if it was updated
+                actual_object = queryset[0]
+                inclusion_date = actual_object.created
+                update_date = actual_object.updated
+                today_date = datetime.now(timezone.utc)
+                is_change = False
+
+                # Change status from new to not new?
+                if actual_object.is_new and (inclusion_date + timedelta(days=10)) < today_date:
+                    actual_object.is_new = False
+                    is_change = True
+                    LOGGER.info("Deployment not new anymore.")
+
+                # Update fields if it was updated in the Cloudify instance
+                if update_date < datetime.strptime(deployment["updated"], "%Y-%m-%dT%H:%M:%S.%f%z"):
+                    actual_object.is_updated = True
+                    actual_object.description = deployment["description"]
+                    actual_object.updated = deployment["updated"]
+                    is_change = True
+                    LOGGER.info("Deployment updated.")
+
+                # Update the deployment information in the model (if there are changes)
+                if is_change:
+                    actual_object.save()
+                    LOGGER.info("Updated deployment info: " + actual_object.name)
 
     @action(detail=False)
     def reset(self, request, *args, **kwargs):
