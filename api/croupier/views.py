@@ -92,8 +92,17 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         # the Hidalgo frontend
         data = serialize_blueprint_list(blueprints[0])
         self.synchronize_blueprint_list_in_model(data)
-        apps = Application.objects.all()
-        LOGGER.info("Number of apps to send: " + str(len(apps)))
+
+        # Filter results by name, if filter available
+        name_filter = self.request.query_params.get('name')
+        LOGGER.info("Name filter: " + str(name_filter))
+        if name_filter is not None:
+            apps = Application.objects.all().filter(name=name_filter)
+            LOGGER.info("Number of apps to send: " + str(len(apps)))
+        else:
+            apps = Application.objects.all()
+            LOGGER.info("Number of apps to send: " + str(len(apps)))
+
         serializer = ApplicationSerializer(apps, many=True)
         return Response(serializer.data)
 
@@ -131,14 +140,21 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         )
 
     def retrieve(self, request, *args, **kwargs):
+        LOGGER.info("Requesting details of an application...")
         instance = self.get_object()
         serializer = self.get_serializer(instance)
 
-        # add inputs to instance data
+        # Retrieve the list of inputs of the blueprint
         inputs = cfy.list_blueprint_inputs(instance.blueprint_id())
-        serializer.data["inputs"] = json.dumps(inputs)
+        LOGGER.info("Inputs used: " + str(inputs))
 
-        return Response(serializer.data)
+        # Build the response with all the data
+        complete_result = {}
+        complete_result = serializer.data
+        complete_result['inputs'] = json.dumps(inputs)
+        LOGGER.info("Complete result: " + str(complete_result))
+
+        return Response(complete_result)
 
     def update(self, request, *args, **kwargs):
         return Response(status=status.HTTP_403_FORBIDDEN)
