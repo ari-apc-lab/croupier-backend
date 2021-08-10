@@ -259,7 +259,26 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         # the Hidalgo frontend
         data = serialize_deployment_list(deployments[0])
         self.synchronize_deployment_list_in_model(data)
+
+        # Filter results by name, if filter available
+        name_filter = self.request.query_params.get('name')
+        LOGGER.info("Name filter: " + str(name_filter))
+        app_filter = self.request.query_params.get('app')
+        LOGGER.info("App filter: " + str(app_filter))
+
+        # Obtain all the instances as first query
         instances = AppInstance.objects.all()
+
+        # Filter by name if available
+        if name_filter is not None:
+            instances = instances.filter(name__icontains=name_filter)
+            LOGGER.info("Name filter. Number of apps to send: " + str(len(instances)))
+
+        # Filter by app if available
+        if app_filter is not None:
+            instances = instances.filter(app__name__icontains=app_filter)
+            LOGGER.info("App filter. Number of apps to send: " + str(len(instances)))
+
         serializer = AppInstanceSerializer(instances, many=True)
         return Response(serializer.data)
 
