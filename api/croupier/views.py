@@ -282,9 +282,10 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         serializer = AppInstanceSerializer(instances, many=True)
         return Response(serializer.data)
 
-    def get_queryset(self):
-        user = self.request.user
-        return AppInstance.objects.filter(owner=user)
+    # def get_queryset(self):
+    #    user = self.request.user
+    #    LOGGER.info("User requesting actions: " + str(user))
+    #    return AppInstance.objects.filter(owner=user)
 
     def create(self, request, *args, **kwargs):
         # Check Application Instance with given name does not exist. Otherwise reject creation
@@ -346,18 +347,32 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         )
 
     def retrieve(self, request, *args, **kwargs):
+        LOGGER.info("Requesting details of an instance...")
         instance = self.get_object()
 
-        if instance.owner != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+        # Retrieve user's token to check in Keycloak
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        LOGGER.info("Security token: " + str(user_token))
+
+        # Use security token to retrieve user name and check authorization for the object
+        # if instance.owner != request.user:
+        #    return Response(status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(instance)
+        LOGGER.info("Instance info: " + str(serializer.data))
 
-        # add inputs to instance data
+        # Retrieve the list of inputs used in the deployment
         inputs = cfy.list_deployment_inputs(instance.deployment_id())
-        serializer.data["inputs"] = json.dumps(inputs)
 
-        return Response(serializer.data)
+        # Build the response with all the data
+        complete_result = {}
+        complete_result = serializer.data
+        # complete_result['inputs'] = inputs
+        complete_result['inputs'] = json.dumps(inputs, ensure_ascii=False)
+        LOGGER.info("Complete result: " + str(complete_result))
+
+        return Response(complete_result)
 
     def update(self, request, *args, **kwargs):
         return Response(status=status.HTTP_403_FORBIDDEN)

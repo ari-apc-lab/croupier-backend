@@ -95,7 +95,7 @@ def list_blueprint_inputs(blueprint_id):
         LOGGER.exception(err)
         error = str(err)
 
-    return (data, error)
+    return data, error
 
 
 def remove_blueprint(blueprint_id):
@@ -140,7 +140,7 @@ def create_deployment(blueprint_id, instance_id, inputs):
         LOGGER.exception(err)
         error = str(err)
 
-    return (deployment, error)
+    return deployment, error
 
 
 def list_deployment_inputs(deployment_id):
@@ -149,21 +149,21 @@ def list_deployment_inputs(deployment_id):
     client = _get_client()
     try:
         deployment_dict = client.deployments.get(deployment_id)
-        inputs = deployment_dict["plan"]["inputs"]  # TODO set specific dictionary
+        LOGGER.info("Deployment Info: " + str(deployment_dict))
+        inputs = deployment_dict["inputs"]
+        LOGGER.info("Available inputs: " + str(inputs))
         data = [
             {
-                "name": name,  # TODO set specific dictionary
-                "type": input.get("type", "-"),
-                "default": input.get("default", "-"),
-                "description": input.get("description", "-"),
+                "name": name,
+                "value": value,
             }
-            for name, input in inputs.items()
+            for name, value in inputs.items()
         ]
     except CloudifyClientError as err:
         LOGGER.exception(err)
         error = str(err)
 
-    return (data, error)
+    return data, error
 
 
 def destroy_deployment(instance_id, force=False):
