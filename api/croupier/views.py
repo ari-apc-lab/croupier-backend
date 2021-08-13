@@ -410,14 +410,15 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
 
-    @action(detail=True)
+    @action(methods=["get"], detail=True)
     def events(self, request, pk=None):
         instance = self.get_object()
 
         # if instance.owner != request.user:
         #    return Response(status=status.HTTP_403_FORBIDDEN)
 
-        offset = request.data["offset"]
+        # offset = request.data["offset"]
+        offset = 0
 
         data = cfy.get_execution_events(instance.last_execution, offset)
         return Response(data)

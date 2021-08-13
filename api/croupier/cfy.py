@@ -210,11 +210,12 @@ def get_execution_events(execution_id, offset):
 
     # TODO: manage errors
     cfy_execution = client.executions.get(execution_id)
+    LOGGER.info("Execution: " + str(cfy_execution))
     events = client.events.list(
         execution_id=execution_id, _offset=offset, _size=100, include_logs=True
     )
     last_message = events.metadata.pagination.total
-
+    LOGGER.info("Events msg: " + str(last_message))
     return {"logs": events.items, "last": last_message, "status": cfy_execution.status}
 
 
