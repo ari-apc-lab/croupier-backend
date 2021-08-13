@@ -252,6 +252,7 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         LOGGER.info("Requesting the list of Instances")
         deployments = cfy.list_deployments()
+        # LOGGER.info("Deployments Available: " + str(deployments))
         # Synchronize deployments returned from Cloudify with the internal model database of application instances
         # For each returned deployment, check if the deployment exits in the internal database by name
         # If not, create the app and store it in the database
@@ -384,9 +385,9 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
     def execute(self, request, pk=None):
         # instance = self.get_object()
         instance = AppInstance.objects.get(pk=pk)
-
-        if instance.owner != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+        LOGGER.info("Current execution instance: " + str(self.get_serializer(instance).data))
+        # if instance.owner != request.user:
+        #    return Response(status=status.HTTP_403_FORBIDDEN)
 
         current_status, wf_type = cfy.get_execution_status(instance.last_execution)
 
@@ -413,8 +414,8 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
     def events(self, request, pk=None):
         instance = self.get_object()
 
-        if instance.owner != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+        # if instance.owner != request.user:
+        #    return Response(status=status.HTTP_403_FORBIDDEN)
 
         offset = request.data["offset"]
 

@@ -220,11 +220,18 @@ def get_execution_events(execution_id, offset):
 
 def get_execution_status(execution_id):
     client = _get_client()
+    LOGGER.info("Execution id: " + str(execution_id))
+
+    # exec_list = client.executions.list()
+    # LOGGER.info("Executions: " + str(exec_list))
+    # Check if the deployment was never executed
+    if execution_id is None:
+        return Execution.TERMINATED, None
 
     # TODO: manage errors
     cfy_execution = client.executions.get(execution_id)
 
-    return (cfy_execution.status, cfy_execution.workflow_id)
+    return cfy_execution.status, cfy_execution.workflow_id
 
 
 def has_execution_ended(status):
