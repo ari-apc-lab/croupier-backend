@@ -44,7 +44,7 @@ def _get_client():
     return client
 
 
-def upload_blueprint(path, blueprint_id):
+def upload_blueprint(path, blueprint_id, blueprint_file_name):
     error = None
     blueprint = None
     is_archive = bool(urlparse(path).scheme) or path.endswith(".tar.gz")
@@ -52,14 +52,14 @@ def upload_blueprint(path, blueprint_id):
     client = _get_client()
     try:
         if is_archive:
-            blueprint = client.blueprints.publish_archive(path, blueprint_id)
+            blueprint = client.blueprints.publish_archive(path, blueprint_id, blueprint_file_name)
         else:
             blueprint = client.blueprints.upload(path, blueprint_id)
     except CloudifyClientError as err:
         LOGGER.exception(err)
         error = str(err)
 
-    return (blueprint, error)
+    return blueprint, error
 
 
 def list_blueprints():

@@ -83,6 +83,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated]  # TODO use roles
+    parser_classes = [MultiPartParser]
 
     def list(self, request, *args, **kwargs):
         LOGGER.info("Requesting the list of Applications")
@@ -111,22 +112,28 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         # Request is immutable by default
         _mutable = request.data._mutable
         request.data._mutable = True
-        request.data["owner"] = request.user.username
+        request.data["owner"] = "admin"
+        request.data["is_new"] = True
+        request.data["included"] = str(datetime.now(timezone.utc))
         request.data._mutable = _mutable
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # create blueprint in cloudify
-        blueprint_package = request.data["blueprint"]
-
+        # Obtain the content from the uploaded file and leave it in temporary file
         tmp_package_file = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
-        for chunk in blueprint_package.chunks():
-            tmp_package_file.write(chunk)
-        tmp_package_file.flush()
+        temp_file_path = tmp_package_file.name
+        LOGGER.info("Temp Blueprint file: " + str(temp_file_path))
+        blueprint_package = request.data["blueprint_file"]
+        LOGGER.info("Blueprint file: " + str(blueprint_package))
+        # LOGGER.info("Blueprint file content: " + str(blueprint_package.read()))
+        with open(temp_file_path, 'wb+') as destination:
+            for chunk in blueprint_package.chunks():
+                destination.write(chunk)
 
-        path = tmp_package_file.name
+        # Create the application in the DDBB and upload the blueprint to Cloudify
+        blueprint_yaml_file_name = request.data["main_blueprint_file"]
         blueprint_id = Application.create_blueprint_id(request.data["name"])
-        _, err = cfy.upload_blueprint(path, blueprint_id)
+        _, err = cfy.upload_blueprint(temp_file_path, blueprint_id, blueprint_yaml_file_name)
 
         tmp_package_file.close()
 
