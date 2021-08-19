@@ -310,11 +310,11 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
 
         # Obtain the content from the uploaded file and leave it in temporary file
         tmp_package_file = tempfile.NamedTemporaryFile(suffix=".yaml", delete=False)
+        temp_file_path = tmp_package_file.name
         LOGGER.info("Temp YAML file: " + str(temp_file_path))
         deployment_file = request.data["inputs_file"]
         LOGGER.info("Iputs file: " + str(deployment_file))
         # LOGGER.info("Iputs file content: " + str(deployment_file.read()))
-        temp_file_path = tmp_package_file.name
         with open(temp_file_path, 'wb+') as destination:
             for chunk in deployment_file.chunks():
                 destination.write(chunk)
