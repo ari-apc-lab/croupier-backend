@@ -12,6 +12,7 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.utils.dateparse import parse_datetime
+from rest_framework.parsers import MultiPartParser
 
 from datetime import *
 
@@ -248,6 +249,7 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
     queryset = AppInstance.objects.all()
     serializer_class = AppInstanceSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
 
     def list(self, request, *args, **kwargs):
         LOGGER.info("Requesting the list of Instances")
@@ -298,23 +300,33 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         except Exception as ex:
             pass # Instance does not exist, proceeding with creation
 
+        # Modify author's information (TODO Get author's info from Keycloak and adapt)
         request.data._mutable = True
-        request.data["owner"] = request.user.username
+        request.data["owner"] = "admin"
 
+        # Retrieve basic information (for consistency checking)
         blueprint_id = request.data["app"]
         deployment_id = request.data["name"]
-        # create deployment in cloudify
+
+        # Obtain the content from the uploaded file and leave it in temporary file
         tmp_package_file = tempfile.NamedTemporaryFile(suffix=".yaml", delete=False)
-        # for chunk in request.data["inputs_file"].chunks():
-        #     tmp_package_file.write(chunk)
-        tmp_package_file.write(str.encode(request.data["inputs_file"]))
-        tmp_package_file.flush()
+        LOGGER.info("Temp YAML file: " + str(temp_file_path))
+        deployment_file = request.data["inputs_file"]
+        LOGGER.info("Iputs file: " + str(deployment_file))
+        # LOGGER.info("Iputs file content: " + str(deployment_file.read()))
+        temp_file_path = tmp_package_file.name
+        with open(temp_file_path, 'wb+') as destination:
+            for chunk in deployment_file.chunks():
+                destination.write(chunk)
 
-        path = tmp_package_file.name
+        # Load the temporary file in order to obtain the YAML inputs in dict structure
         inputs = None
-        with open(path) as file:
-            inputs = yaml.load(file, Loader=yaml.FullLoader)
+        # example_file = "C:\\HiDALGO\\Demo\\ECMWF\\ecmwf-publish-blueprint-inputs-basic.yaml"
+        with open(temp_file_path, 'r') as my_yaml_file:
+            inputs = yaml.safe_load(my_yaml_file)
+            LOGGER.info("Iputs from YAML: " + str(inputs))
 
+        # Execute the call to create a new deployment with the information provided
         _, err = cfy.create_deployment(
             blueprint_id, deployment_id, inputs
         )
@@ -322,18 +334,18 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         if err:
             return Response(err, status=status.HTTP_409_CONFLICT)
 
-        # execute install workflow
+        # Execute install workflow
         execution, err = cfy.execute_workflow(deployment_id, cfy.INSTALL)
 
         if err:
             return Response(err, status=status.HTTP_409_CONFLICT)
 
-        # create deployment on database. If it were to fail, reverse the process on Cloudify
+        # Create deployment on database. If it were to fail, reverse the process on Cloudify
         try:
             request.data["last_execution"] = execution["id"]
             request.data["created"] = execution["created_at"]
             request.data["updated"] = execution["created_at"]
-            request.data["description"] = None
+            request.data["is_new"] = True
             app = Application.getByName(request.data["app"])
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
