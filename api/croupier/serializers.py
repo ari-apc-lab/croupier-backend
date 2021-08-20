@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from croupier.models import (
     Application,
     AppInstance,
+    InstanceExecution,
     ComputingInfrastructure,
     ComputingInstance,
     DataCatalogueKey,
@@ -59,3 +60,25 @@ class ComputingInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComputingInstance
         fields = ["id", "name", "owner", "infrastructure", "definition"]
+
+
+class InstanceExecutionSerializer(serializers.ModelSerializer):
+    owner = serializers.SlugRelatedField(slug_field="username", queryset=User.objects.all())
+    instance = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = InstanceExecution
+        fields = [
+            "id",
+            "instance",
+            "created",
+            "finished",
+            "execution_time",
+            "owner",
+            "status",
+            "has_errors",
+            "num_errors",
+            "current_task",
+            "progress"
+        ]
+

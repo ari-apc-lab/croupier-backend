@@ -20,6 +20,7 @@ from croupier import cfy
 from croupier.models import (
     Application,
     AppInstance,
+    InstanceExecution,
     DataCatalogueKey,
     ComputingInfrastructure,
     ComputingInstance,
@@ -27,6 +28,7 @@ from croupier.models import (
 from croupier.serializers import (
     ApplicationSerializer,
     AppInstanceSerializer,
+    InstanceExecutionSerializer,
     DataCatalogueKeySerializer,
     ComputingInfrastructureSerializer,
     ComputingInstanceSerializer,
@@ -629,3 +631,73 @@ class ComputingInstanceViewSet(viewsets.ModelViewSet):
     queryset = ComputingInstance.objects.all()
     serializer_class = ComputingInstanceSerializer
     permission_classes = [IsAuthenticated]
+
+
+class InstanceExecutionViewSet(viewsets.ModelViewSet):
+    queryset = InstanceExecution.objects.all()
+    serializer_class = InstanceExecutionSerializer
+    permission_classes = [IsAuthenticated]  # TODO use roles
+
+    def list(self, request, *args, **kwargs):
+        LOGGER.info("Requesting the list of Executions...")
+
+        # TODO We should get all the executions of existing deployments going through their events (sync)
+        self.update_executions()
+
+        # Filter results by name, if filter available
+        name_filter = self.request.query_params.get('name')
+        LOGGER.info("Name filter: " + str(name_filter))
+        if name_filter is not None:
+            execs = InstanceExecution.objects.all().filter(instance__name__icontains=name_filter)
+            LOGGER.info("Number of executions to send: " + str(len(execs)))
+        else:
+            execs = InstanceExecution.objects.all()
+            LOGGER.info("Number of executions to send: " + str(len(execs)))
+
+        serializer = InstanceExecutionSerializer(execs, many=True)
+        return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+    def retrieve(self, request, *args, **kwargs):
+        LOGGER.info("Requesting details of an execution...")
+        execution = self.get_object()
+        serializer = self.get_serializer(execution)
+
+        # Retrieve the list of inputs of the blueprint
+        inputs = cfy.list_deployment_inputs(execution.instance.deployment_id())
+        LOGGER.info("Inputs used: " + str(inputs))
+
+        # Build the response with all the data
+        complete_result = {}
+        complete_result = serializer.data
+        complete_result['inputs'] = json.dumps(inputs)
+        LOGGER.info("Complete result: " + str(complete_result))
+
+        return Response(complete_result)
+
+    def update(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+    def update_executions (self):
+        LOGGER.info("Updating the status of the executions...")
+
+        # Take the full list of executions in the DDBB and update them one by one
+        all_executions = InstanceExecution.objects.all()
+        for execution in all_executions:
+            exec_full_info = cfy.get_execution(execution.id)
+            LOGGER.info("Execution Info: " + str(exec_full_info))
+
+        exec_full_info = cfy.get_execution("13f79755-ebc2-4ec3-807f-8cce21c78a7c")
+        # LOGGER.info("Execution Info: " + str(exec_full_info))
+        # dep_info = cfy.list_deployment_inputs("testb_01_demo")
+        # LOGGER.info("Deployment Info: " + str(dep_info))
+        # bluep_info = cfy.list_blueprint_inputs("test_new_0")
+        # LOGGER.info("Blueprint Info: " + str(bluep_info))

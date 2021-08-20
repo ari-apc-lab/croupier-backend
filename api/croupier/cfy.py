@@ -81,6 +81,21 @@ def list_blueprint_inputs(blueprint_id):
     client = _get_client()
     try:
         blueprint_dict = client.blueprints.get(blueprint_id)
+        # LOGGER.info("Blueprint Info: " + str(blueprint_dict))
+        LOGGER.info("Blueprint Info: " + str(blueprint_dict["plan"]["nodes"][1]["id"]))
+        nodes = client.nodes.list(_include=['id', 'type', 'host_id'])
+        for node in nodes:
+            LOGGER.info("Blueprint Node: " + str(node))
+
+        nodes_instances = client.node_instances.list(_include=['id', 'host_id'])
+        for node_instance in nodes_instances:
+            LOGGER.info("Blueprint Node Instance: " + str(node_instance))
+
+        events = client.events.list(execution_id="f92ebd85-5d4b-4258-ad1c-d7f04d6f2ab7", node_id="job1",
+                                    _include=['node_instance_id'])
+        for event in events:
+            LOGGER.info("Execute Event Node Instance: " + str(event))
+
         inputs = blueprint_dict["plan"]["inputs"]
         data = [
             {
@@ -176,7 +191,7 @@ def destroy_deployment(instance_id, force=False):
         LOGGER.exception(err)
         error = str(err)
 
-    return (deployment, error)
+    return deployment, error
 
 
 def execute_workflow(deployment_id, workflow, force=False, params=None):
@@ -233,6 +248,68 @@ def get_execution_status(execution_id):
     cfy_execution = client.executions.get(execution_id)
 
     return cfy_execution.status, cfy_execution.workflow_id
+
+
+def get_execution(execution_id):
+    client = _get_client()
+    LOGGER.info("Execution id: " + str(execution_id))
+
+    # Check if the deployment was never executed
+    if execution_id is None:
+        return None
+
+    # TODO: manage errors
+    # First of all, retrieve basic information from the Execution
+    cfy_execution = client.executions.get(execution_id)
+
+    # Obtain plan information from the Blueprint (Nodes)
+    blueprint_plan = client.blueprints.get(blueprint_id=cfy_execution.blueprint_id, _include=['plan'])
+    # LOGGER.info("Nodes List: " + str(blueprint_plan))
+    LOGGER.info("Nodes List: " + str(blueprint_plan["plan"]["nodes"]))
+    nodes_in_plan = blueprint_plan["plan"]["nodes"]
+    nodes_list = []
+    for node in nodes_in_plan:
+        if node["type"]!="croupier.nodes.InfrastructureInterface":
+            nodes_list.append(node["id"])
+            LOGGER.info("Found job node: " + str(node["id"]))
+
+    # Obtain the Node Instances, corresponding to the Nodes for the current Execution Id (from Events)
+    node_instances = set([])
+    for node in nodes_list:
+        instances_in_events = client.events.list(execution_id=execution_id, node_id=node,
+                                                 _include=['node_instance_id'])
+
+        # Let's iterate through all the node instances, in case there is more than one per node
+        for node_instance in instances_in_events:
+            node_instance_id = node_instance["node_instance_id"]
+            LOGGER.info("Found node instance: " + node_instance_id)
+            node_instances.add(node_instance_id)
+
+    LOGGER.info("Total list: " + str(node_instances))
+
+    for node_instance in node_instances:
+        # node_instance_info = client.node_instances.list(id=node_instance, _include=['id', 'host_id'])
+        node_instance_info = client.node_instances.list(id=node_instance)
+        LOGGER.info("Node Instance info: " + str(node_instance_info[0]))
+
+    # operations_list = client.nodes.list(id=nodes_list[0], _include=['operations'])
+    task_graphs = client.tasks_graphs.list(execution_id, "run_jobs")
+    LOGGER.info("Number of workflows: " + str(len(task_graphs)))
+    for task_graph in task_graphs:
+        LOGGER.info("Available workflow: " + str(task_graph))
+
+    # for operation in operations_list:
+    #    LOGGER.info("Node Operation info: " + str(operation["operations"]))
+
+    deployment_dict = client.deployments.get(cfy_execution["deployment_id"])
+    LOGGER.info("Deployment Info: " + str(deployment_dict))
+    workflows = deployment_dict["workflows"]
+    LOGGER.info("Available workflows: " + str(workflows))
+
+    # operations_list = client.operations.list()
+    # LOGGER.info("Operations Info: " + str(operations_list))
+
+    return cfy_execution
 
 
 def has_execution_ended(status):

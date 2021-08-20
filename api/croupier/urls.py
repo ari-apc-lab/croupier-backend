@@ -17,9 +17,10 @@ Including another URLconf
 # from django.urls import path
 # from django.conf.urls import url, include
 from rest_framework import routers
-from croupier.views import ApplicationViewSet, AppInstanceViewSet
+from croupier.views import ApplicationViewSet, AppInstanceViewSet, InstanceExecutionViewSet
 
 router = routers.DefaultRouter()
 router.register(r"apps", ApplicationViewSet, basename="apps")
 router.register(r"instances", AppInstanceViewSet, basename="instances")
+router.register(r"executions", InstanceExecutionViewSet, basename="executions")
 urlpatterns = router.urls

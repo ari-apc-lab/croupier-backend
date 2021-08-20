@@ -113,3 +113,49 @@ class ComputingInstance(models.Model):
     )
 
     definition = models.TextField()
+
+
+class InstanceExecution(models.Model):
+    # Basic info (id provided by Cloudify and deployment linked to the execution
+    id = models.CharField(max_length=50, unique=True, primary_key=True)
+    instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE)
+
+    # Time-related properties
+    created = models.DateTimeField()
+    finished = models.DateTimeField(null=True)
+    execution_time = models.IntegerField(null=True)
+
+    # User who created the execution
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, to_field='username')
+
+    # Properties related to the status
+    PENDING = "PENDING"
+    STARTED = "STARTED"
+    CANCELLING = "CANCELLING"
+    FORCE_CANCELLING = "FORCE_CANCELLING"
+    CANCELLED = "CANCELLED"
+    TERMINATED = "TERMINATED"
+    FAILED = "FAILED"
+    QUEUED = "QUEUED"
+    SCHEDULED = "SCHEDULED"
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (STARTED, 'Started'),
+        (CANCELLING, 'Cancelling'),
+        (FORCE_CANCELLING, 'Force Cancelling'),
+        (CANCELLED, 'Cancelled'),
+        (TERMINATED, 'Terminated'),
+        (FAILED, 'Failed'),
+        (QUEUED, 'Queued'),
+        (SCHEDULED, 'Scheduled'),
+    ]
+    status = models.CharField(max_length=17, choices=STATUS_CHOICES, default=PENDING)
+    has_errors = models.BooleanField(default=False)
+    num_errors = models.IntegerField(default=0)
+    current_task = models.CharField(max_length=50, null=True)
+    progress = models.FloatField(default=0.0)
+
+    @classmethod
+    def getByName(cls, name):
+        return InstanceExecution.objects.all().filter(id=name)[0]
+
