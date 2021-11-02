@@ -194,7 +194,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         # This is crucial, since blueprints in the DDBB, not present in Cloudify would fail execution
         all_internal_apps = Application.objects.all()
         for internal_app in all_internal_apps:
-            app_found = any(internal_app.name in str(blueprint_properties) for blueprint_properties in blueprints)
+            app_found = any(internal_app.name == str(blueprint_properties['name']) for blueprint_properties
+                            in blueprints)
             if not app_found:
                 LOGGER.info("Remove blueprint: " + str(internal_app))
                 internal_app.delete()
@@ -470,9 +471,10 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         # Take the full list of deployments in the DDBB and check which ones should be removed
         # This is crucial, since deployments in the DDBB, not present in Cloudify would fail execution
         all_internal_instances = AppInstance.objects.all()
+        LOGGER.info("Number of deployments stored: " + str(len(all_internal_instances)))
         for internal_app_instance in all_internal_instances:
-            app_instance_found = any(internal_app_instance.name in str(deployment_properties) for deployment_properties
-                                     in deployments)
+            app_instance_found = any(internal_app_instance.name == str(deployment_properties['name']) for
+                                     deployment_properties in deployments)
             if not app_instance_found:
                 LOGGER.info("Remove deployment: " + str(internal_app_instance))
                 internal_app_instance.delete()
