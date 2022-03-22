@@ -17,7 +17,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = ["id", "name", "description", "owner", "main_blueprint_file", "created", "included", "updated",
-                  "is_new", "is_updated"]
+                  "is_new", "is_updated", "is_advertised"]
 
 
 class AppInstanceSerializer(serializers.ModelSerializer):

@@ -27,6 +27,7 @@ class Application(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, to_field='username')
     is_new = models.BooleanField(default=False)
     is_updated = models.BooleanField(default=False)
+    is_advertised = models.BooleanField(default=False)
 
     @classmethod
     def create_blueprint_id(cls, name):

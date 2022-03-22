@@ -236,7 +236,7 @@ def get_execution_events(execution_id, offset):
 
 def get_execution_status(execution_id):
     client = _get_client()
-    LOGGER.info("Execution id: " + str(execution_id))
+    LOGGER.info("Checking last execution id: " + str(execution_id))
 
     # exec_list = client.executions.list()
     # LOGGER.info("Executions: " + str(exec_list))
@@ -269,7 +269,7 @@ def get_execution(execution_id):
     nodes_in_plan = blueprint_plan["plan"]["nodes"]
     nodes_list = []
     for node in nodes_in_plan:
-        if node["type"]!="croupier.nodes.InfrastructureInterface":
+        if node["type"] != "croupier.nodes.InfrastructureInterface":
             nodes_list.append(node["id"])
             LOGGER.info("Found job node: " + str(node["id"]))
 

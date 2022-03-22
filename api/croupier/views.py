@@ -116,6 +116,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         request.data._mutable = True
         request.data["owner"] = "admin"
         request.data["is_new"] = True
+        request.data["is_advertised"] = False
         request.data["included"] = str(datetime.now(timezone.utc))
         request.data._mutable = _mutable
         serializer = self.get_serializer(data=request.data)
@@ -213,6 +214,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
                 blueprint.update({"included": str(datetime.now(timezone.utc))})
                 blueprint.update({"is_new": "True"})
                 blueprint.update({"is_updated": "False"})
+                blueprint.update({"is_advertised": "False"})
                 LOGGER.info("Add blueprint: " + str(blueprint))
 
                 serializer = self.get_serializer(data=blueprint)
@@ -407,7 +409,7 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
     def execute(self, request, pk=None):
         # instance = self.get_object()
         instance = AppInstance.objects.get(pk=pk)
-        LOGGER.info("Current execution instance: " + str(self.get_serializer(instance).data))
+        LOGGER.info("Current instance for execution: " + str(self.get_serializer(instance).data))
         # if instance.owner != request.user:
         #    return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -430,6 +432,16 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+
+        # create new execution element
+        new_execution_id = execution["id"]
+        new_execution_date = datetime.now(timezone.utc)
+        new_execution_owner = User.objects.get(username='admin')
+        new_execution = InstanceExecution(id=new_execution_id, instance=instance, created=new_execution_date,
+                                          owner=new_execution_owner)
+        new_execution.save()
+        LOGGER.info("New execution created: " + new_execution_id)
+
         return Response(serializer.data)
 
     @action(methods=["get"], detail=True)
@@ -644,7 +656,7 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
         LOGGER.info("Requesting the list of Executions...")
 
         # TODO We should get all the executions of existing deployments going through their events (sync)
-        self.update_executions()
+        # self.update_executions()
 
         # Filter results by name, if filter available
         name_filter = self.request.query_params.get('name')

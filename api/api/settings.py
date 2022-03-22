@@ -138,6 +138,11 @@ REST_FRAMEWORK = {
     ]
 }
 
+# To secure the REST service, so it uses HTTPS and applies good practices
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 # AUTHENTICATION_BACKENDS = ("keycloak.auth.OIDCAuthBackend",)
 AUTHENTICATION_BACKENDS = ("mozilla_django_oidc.auth.OIDCAuthenticationBackend",)
 
