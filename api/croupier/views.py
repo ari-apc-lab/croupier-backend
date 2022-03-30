@@ -656,7 +656,8 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
         LOGGER.info("Requesting the list of Executions...")
 
         # TODO We should get all the executions of existing deployments going through their events (sync)
-        # self.update_executions()
+        # Update the information for all the executions that are not already registered aas 'terminated'
+        self.update_executions()
 
         # Filter results by name, if filter available
         name_filter = self.request.query_params.get('name')
@@ -677,16 +678,33 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         LOGGER.info("Requesting details of an execution...")
         execution = self.get_object()
-        serializer = self.get_serializer(execution)
 
         # Retrieve the list of inputs of the blueprint
         inputs = cfy.list_deployment_inputs(execution.instance.deployment_id())
         LOGGER.info("Inputs used: " + str(inputs))
 
+        # Retrieve current information about the execution
+        exec_full_info = cfy.get_execution(execution.id)
+
+        # Update execution object
+        execution.status = exec_full_info['status']
+        execution.execution_time = exec_full_info['execution_time']
+        execution.current_task = exec_full_info['current_task']
+        execution.progress = exec_full_info['progress']
+        execution.num_errors = exec_full_info['num_errors']
+        if exec_full_info['status'] == 'terminated' or exec_full_info['status'] == 'failed':
+            execution.finished = exec_full_info['end_time']
+        if exec_full_info['num_errors'] > 0:
+            execution.has_errors = True
+        execution.save()
+
         # Build the response with all the data
         complete_result = {}
+        serializer = self.get_serializer(execution)
         complete_result = serializer.data
-        complete_result['inputs'] = json.dumps(inputs)
+        # complete_result['inputs'] = json.dumps(inputs)
+        complete_result['current_operation'] = exec_full_info['current_operation']
+        complete_result['error_message'] = exec_full_info['error_message']
         LOGGER.info("Complete result: " + str(complete_result))
 
         return Response(complete_result)
@@ -704,12 +722,12 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
         LOGGER.info("Updating the status of the executions...")
 
         # Take the full list of executions in the DDBB and update them one by one
-        all_executions = InstanceExecution.objects.all()
-        for execution in all_executions:
-            exec_full_info = cfy.get_execution(execution.id)
-            LOGGER.info("Execution Info: " + str(exec_full_info))
+        # all_executions = InstanceExecution.objects.all()
+        # for execution in all_executions:
+        #     exec_full_info = cfy.get_execution(execution.id)
+        #     LOGGER.info("Execution Info: " + str(exec_full_info))
 
-        exec_full_info = cfy.get_execution("13f79755-ebc2-4ec3-807f-8cce21c78a7c")
+        # exec_full_info = cfy.get_execution("e0ad025b-7692-4a4c-afcb-cfc8aa9b1129")
         # LOGGER.info("Execution Info: " + str(exec_full_info))
         # dep_info = cfy.list_deployment_inputs("testb_01_demo")
         # LOGGER.info("Deployment Info: " + str(dep_info))

@@ -3,6 +3,7 @@ import time
 import logging
 from urllib.parse import urlparse
 from django.conf import settings
+from datetime import *
 
 from cloudify_rest_client import CloudifyClient
 from cloudify_rest_client.executions import Execution
@@ -261,6 +262,10 @@ def get_execution(execution_id):
     # TODO: manage errors
     # First of all, retrieve basic information from the Execution
     cfy_execution = client.executions.get(execution_id)
+    LOGGER.info("Status: " + cfy_execution.status)
+    LOGGER.info("End Time: " + str(cfy_execution.ended_at))
+    LOGGER.info("Operations Finished: " + str(cfy_execution.finished_operations))
+    LOGGER.info("Error: " + str(cfy_execution.error))
 
     # Obtain plan information from the Blueprint (Nodes)
     blueprint_plan = client.blueprints.get(blueprint_id=cfy_execution.blueprint_id, _include=['plan'])
@@ -269,47 +274,115 @@ def get_execution(execution_id):
     nodes_in_plan = blueprint_plan["plan"]["nodes"]
     nodes_list = []
     for node in nodes_in_plan:
-        if node["type"] != "croupier.nodes.InfrastructureInterface":
+        if node["type"] == "croupier.nodes.Job":
             nodes_list.append(node["id"])
-            LOGGER.info("Found job node: " + str(node["id"]))
+            LOGGER.info("Found job node: " + str(node["id"]) + " of type " + str(node["type"]))
 
     # Obtain the Node Instances, corresponding to the Nodes for the current Execution Id (from Events)
     node_instances = set([])
-    for node in nodes_list:
-        instances_in_events = client.events.list(execution_id=execution_id, node_id=node,
-                                                 _include=['node_instance_id'])
+    tasks_done = set([])
+    ongoing_operation = 'None'
+    ongoing_task = 'None'
 
-        # Let's iterate through all the node instances, in case there is more than one per node
-        for node_instance in instances_in_events:
-            node_instance_id = node_instance["node_instance_id"]
-            LOGGER.info("Found node instance: " + node_instance_id)
-            node_instances.add(node_instance_id)
+    # instances_in_events = client.events.list(execution_id=execution_id, node_id=node,
+    #                                         _include=['node_instance_id'])
+    instances_in_events = client.events.list(execution_id=execution_id, sort='timestamp')
 
-    LOGGER.info("Total list: " + str(node_instances))
+    # Let's iterate through all the events and detect tasks and operations status
+    operations_done = set([])
+    task_progress = 0.0
+    num_errors = 0
+    for node_instance in instances_in_events:
+        node_instance_id = node_instance["node_instance_id"]
+        LOGGER.info("Full node instance info: " + str(node_instance))
+        LOGGER.info("Found node instance: " + str(node_instance_id))
+        node_instances.add(node_instance_id)
 
-    for node_instance in node_instances:
-        # node_instance_info = client.node_instances.list(id=node_instance, _include=['id', 'host_id'])
-        node_instance_info = client.node_instances.list(id=node_instance)
-        LOGGER.info("Node Instance info: " + str(node_instance_info[0]))
+        # Look at the operations and see which one is completed: queue, publish, cleanup
+        node_event = node_instance["event_type"]
+        node_operation = node_instance["operation"]
+        LOGGER.info("Event: " + str(node_event) + " for operation: " + str(node_operation))
+
+        if node_event == 'sending_task':
+            ongoing_task = node_instance["node_name"]
+            ongoing_operation = node_operation
+            if node_operation == 'croupier.interfaces.lifecycle.publish':
+                task_progress = 88.0
+            elif node_operation == 'croupier.interfaces.lifecycle.cleanup':
+                task_progress = 94.0
+        elif node_event == 'task_succeeded':
+            if node_operation == 'croupier.interfaces.lifecycle.queue':
+                ongoing_operation = 'Executing task'
+                operations_done.add(node_operation)
+                LOGGER.info("Task " + ongoing_task + " was queued and is executing or waiting for execution.")
+                task_progress = 8.0
+            else:
+                ongoing_operation = 'None'
+                operations_done.add(node_operation)
+                task_progress = 94.0
+                if node_operation == 'croupier.interfaces.lifecycle.cleanup':
+                    tasks_done.add(node_instance["node_name"])
+                    ongoing_task = 'None'
+                    task_progress = 100.0
+        elif node_event == 'workflow_failed':
+            num_errors = num_errors + 1
+
+    LOGGER.info("Total list: " + str(nodes_list))
+    LOGGER.info("Task progress: " + str(task_progress))
+    LOGGER.info("Number of tasks: " + str(len(nodes_list)))
+
+    # for node_instance in node_instances:
+    #     # node_instance_info = client.node_instances.list(id=node_instance, _include=['id', 'host_id'])
+    #     node_instance_info = client.node_instances.list(id=node_instance)
+    #     LOGGER.info("Node Instance info: " + str(node_instance_info[0]))
 
     # operations_list = client.nodes.list(id=nodes_list[0], _include=['operations'])
-    task_graphs = client.tasks_graphs.list(execution_id, "run_jobs")
-    LOGGER.info("Number of workflows: " + str(len(task_graphs)))
-    for task_graph in task_graphs:
-        LOGGER.info("Available workflow: " + str(task_graph))
+    # task_graphs = client.tasks_graphs.list(execution_id, "run_jobs")
+    # LOGGER.info("Number of workflows: " + str(len(task_graphs)))
+    # for task_graph in task_graphs:
+    #     LOGGER.info("Available workflow: " + str(task_graph))
 
     # for operation in operations_list:
     #    LOGGER.info("Node Operation info: " + str(operation["operations"]))
 
-    deployment_dict = client.deployments.get(cfy_execution["deployment_id"])
-    LOGGER.info("Deployment Info: " + str(deployment_dict))
-    workflows = deployment_dict["workflows"]
-    LOGGER.info("Available workflows: " + str(workflows))
+    # deployment_dict = client.deployments.get(cfy_execution["deployment_id"])
+    # LOGGER.info("Deployment Info: " + str(deployment_dict))
+    # workflows = deployment_dict["workflows"]
+    # LOGGER.info("Available workflows: " + str(workflows))
 
     # operations_list = client.operations.list()
     # LOGGER.info("Operations Info: " + str(operations_list))
 
-    return cfy_execution
+    # Calculate percentage of execution
+    workflow_progress = 100.0
+    if cfy_execution.status != 'terminated':
+        workflow_progress = (100/len(nodes_list))*len(tasks_done) + task_progress/len(nodes_list)
+    LOGGER.info("Total progress: " + str(workflow_progress))
+
+    # Calculate total execution time of the instance
+    execution_time = 0
+    start_date = datetime.strptime(cfy_execution.started_at, "%Y-%m-%dT%H:%M:%S.%f%z")
+    if cfy_execution.ended_at is None:
+        end_date = datetime.now(timezone.utc)
+        execution_time = end_date - start_date
+    else:
+        end_date = datetime.strptime(cfy_execution.ended_at, "%Y-%m-%dT%H:%M:%S.%f%z")
+        execution_time = end_date - start_date
+
+    execution_result = dict()
+    execution_result['status'] = cfy_execution.status
+    execution_result['end_time'] = cfy_execution.ended_at
+    execution_result['total_tasks'] = len(nodes_list)
+    execution_result['tasks_completed'] = len(tasks_done)
+    execution_result['execution_time'] = execution_time.seconds
+    execution_result['current_task'] = ongoing_task
+    execution_result['current_operation'] = ongoing_operation
+    execution_result['progress'] = workflow_progress
+    execution_result['num_errors'] = num_errors
+    execution_result['error_message'] = cfy_execution.error
+    LOGGER.info("Execution info result: " + str(execution_result))
+
+    return execution_result
 
 
 def has_execution_ended(status):
