@@ -280,6 +280,8 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         LOGGER.info("Name filter: " + str(name_filter))
         app_filter = self.request.query_params.get('app')
         LOGGER.info("App filter: " + str(app_filter))
+        created_filter = self.request.query_params.get('created')
+        LOGGER.info("Created filter: " + str(created_filter))
 
         # Obtain all the instances as first query
         instances = AppInstance.objects.all()
@@ -293,6 +295,10 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         if app_filter is not None:
             instances = instances.filter(app__name__icontains=app_filter)
             LOGGER.info("App filter. Number of apps to send: " + str(len(instances)))
+
+        if created_filter is not None:
+            instances = instances.filter(created__gte=datetime.strptime(created_filter, "%Y-%m-%dT%H:%M:%S.%f%z"))
+            LOGGER.info("Date filter. Number of apps to send: " + str(len(instances)))
 
         serializer = AppInstanceSerializer(instances, many=True)
         return Response(serializer.data)
@@ -662,12 +668,23 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
         # Filter results by name, if filter available
         name_filter = self.request.query_params.get('name')
         LOGGER.info("Name filter: " + str(name_filter))
+        status_filter = self.request.query_params.get('status')
+        LOGGER.info("Status filter: " + str(status_filter))
+        created_filter = self.request.query_params.get('created')
+        LOGGER.info("Created filter: " + str(status_filter))
+
+        execs = InstanceExecution.objects.all()
         if name_filter is not None:
-            execs = InstanceExecution.objects.all().filter(instance__name__icontains=name_filter)
-            LOGGER.info("Number of executions to send: " + str(len(execs)))
-        else:
-            execs = InstanceExecution.objects.all()
-            LOGGER.info("Number of executions to send: " + str(len(execs)))
+            execs = execs.filter(instance__name__icontains=name_filter)
+            LOGGER.info("Instance name filter. Number of executions to send: " + str(len(execs)))
+
+        if status_filter is not None:
+            execs = execs.filter(status__icontains=status_filter)
+            LOGGER.info("Status filter. Number of executions to send: " + str(len(execs)))
+
+        if created_filter is not None:
+            execs = execs.filter(created__gte=datetime.strptime(created_filter, "%Y-%m-%dT%H:%M:%S.%f%z"))
+            LOGGER.info("Date filter. Number of executions to send: " + str(len(execs)))
 
         serializer = InstanceExecutionSerializer(execs, many=True)
         return Response(serializer.data)
