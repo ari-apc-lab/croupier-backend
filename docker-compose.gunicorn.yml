@@ -9,8 +9,6 @@ services:
     container_name: backend_service_gunicorn
     volumes:
       - .:/backend
-      - static_volume:/home/app/web/staticfiles
-      - media_volume:/home/app/web/mediafiles
     expose:
       - 80
     ports:
