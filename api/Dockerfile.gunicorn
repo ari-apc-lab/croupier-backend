@@ -10,6 +10,7 @@ WORKDIR /backend
 
 # Copy the current folder, archives and directories, to the working directory
 ADD ./api/ /backend/
+RUN ls backend
 
 # Install needed packages for the Python environment
 RUN pip install --upgrade pip
