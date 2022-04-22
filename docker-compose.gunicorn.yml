@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.gunicorn
+    command: bash -c "python manage.py makemigrations && python manage.py migrate && gunicorn api.wsgi:application --bind 0.0.0.0:80"
+    container_name: backend_service_gunicorn
+    volumes:
+      - .:/backend
+      - static_volume:/home/app/web/staticfiles
+      - media_volume:/home/app/web/mediafiles
+    expose:
+      - 80
+    ports:
+      - 80:80
+    env_file:
+      - ./.env.gunicorn
