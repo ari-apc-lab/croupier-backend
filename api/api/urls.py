@@ -17,10 +17,14 @@ from django.contrib import admin
 from django.urls import path
 from django.conf.urls import url, include
 
+from croupier import views
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 #    url(r"^oidc/", include("mozilla_django_oidc.urls")),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("oidc/", include("mozilla_django_oidc.urls")),
-    path("", include("croupier.urls"))
+    path("", include("croupier.urls")),
+    path("credentials/", views.UserCredentialsViewSet.as_view(), name='credentials'),
+    path("credentials/<str:pk>/", views.CredentialViewSet.as_view())
 ]

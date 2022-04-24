@@ -6,6 +6,7 @@ import logging
 
 from django.http import JsonResponse
 from rest_framework import status, viewsets
+from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
@@ -17,6 +18,7 @@ from rest_framework.parsers import MultiPartParser
 from datetime import *
 
 from croupier import cfy
+from croupier import vault
 from croupier.models import (
     Application,
     AppInstance,
@@ -314,9 +316,9 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
             instance = AppInstance.getByName(request.data["name"])
             if instance is not None:
                 return Response("Application instance with name {} already created".format(request.data["name"]),
-                            status=status.HTTP_409_CONFLICT)
+                                status=status.HTTP_409_CONFLICT)
         except Exception as ex:
-            pass # Instance does not exist, proceeding with creation
+            pass  # Instance does not exist, proceeding with creation
 
         # Modify author's information (TODO Get author's info from Keycloak and adapt)
         request.data._mutable = True
@@ -385,6 +387,8 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         auth_header = self.request.META.get('HTTP_AUTHORIZATION')
         user_token = auth_header.replace('Bearer ', '', 1)
         LOGGER.info("Security token: " + str(user_token))
+        token_info = vault.get_user_info(user_token)
+        LOGGER.info("User name: " + token_info)
 
         # Use security token to retrieve user name and check authorization for the object
         # if instance.owner != request.user:
@@ -735,7 +739,7 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return Response(status=status.HTTP_403_FORBIDDEN)
 
-    def update_executions (self):
+    def update_executions(self):
         LOGGER.info("Updating the status of the executions...")
 
         # Take the full list of executions in the DDBB and update them one by one
@@ -750,3 +754,66 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
         # LOGGER.info("Deployment Info: " + str(dep_info))
         # bluep_info = cfy.list_blueprint_inputs("test_new_0")
         # LOGGER.info("Blueprint Info: " + str(bluep_info))
+
+
+class UserCredentialsViewSet(APIView):
+    permission_classes = [IsAuthenticated]  # TODO use roles
+
+    def get(self, request):
+        # Retrieve user's token to check in Keycloak
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        LOGGER.info("Security token: " + str(user_token))
+        token_info = vault.get_user_info(user_token)
+        LOGGER.info("User name: " + token_info)
+
+        # List all the credentials stored for the user with the token
+        # vault_credentials = vault.get_user_tokens(user_token)
+
+        return Response(token_info)
+
+
+class CredentialViewSet(APIView):
+    permission_classes = [IsAuthenticated]  # TODO use roles
+
+    def get(self, request, pk, format=None):
+        # Retrieve user's token to check in Keycloak
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        LOGGER.info("Security token credential: " + str(user_token))
+        token_info = vault.get_user_info(user_token)
+        LOGGER.info("User name: " + token_info)
+        LOGGER.info("Credential Id: " + pk)
+
+        # List all the credentials stored for the user with the token
+        # vault_credentials = vault.get_user_tokens(user_token)
+
+        return Response(token_info)
+
+    def post(self, request, pk, format=None):
+        # Retrieve user's token to check in Keycloak
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        LOGGER.info("Security token credential: " + str(user_token))
+        token_info = vault.get_user_info(user_token)
+        LOGGER.info("User name: " + token_info)
+        LOGGER.info("Credential Id: " + pk)
+
+        # List all the credentials stored for the user with the token
+        # vault_credentials = vault.get_user_tokens(user_token)
+
+        return Response(token_info)
+
+    def delete(self, request, pk, format=None):
+        # Retrieve user's token to check in Keycloak
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        LOGGER.info("Security token credential: " + str(user_token))
+        token_info = vault.get_user_info(user_token)
+        LOGGER.info("User name: " + token_info)
+        LOGGER.info("Credential Id: " + pk)
+
+        # List all the credentials stored for the user with the token
+        # vault_credentials = vault.get_user_tokens(user_token)
+
+        return Response(token_info)
