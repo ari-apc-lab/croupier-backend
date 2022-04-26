@@ -15,6 +15,8 @@ from django.contrib.auth.models import User
 from django.utils.dateparse import parse_datetime
 from rest_framework.parsers import MultiPartParser
 
+from requests import get
+
 from datetime import *
 
 from croupier import cfy
@@ -717,7 +719,7 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
 
         # Filter by owner
         execs = execs.filter(owner=user_name)
-        LOGGER.info("Owner filter. Number of instances to send: " + str(len(execs)))
+        LOGGER.info("Owner filter. Number of executions to send: " + str(len(execs)))
 
         serializer = InstanceExecutionSerializer(execs, many=True)
         return Response(serializer.data)
@@ -854,3 +856,29 @@ class CredentialViewSet(APIView):
         # vault_delete = vault.remove_user_secret(user_token, pk)
 
         return Response(token_info)
+
+
+class CKANViewSet(APIView):
+    permission_classes = [IsAuthenticated]  # TODO use roles
+
+    def get(self, request, format=None):
+        # Prepare the CKAN endpoint
+        CKAN_endpoint = "https://ckan.hidalgo-project.eu/api/3/action/package_search"
+        ckan_filter = self.request.query_params.get('keywords')
+        ckan_payload = {'q': ckan_filter}
+        response = get(CKAN_endpoint, params=ckan_payload)
+        ckan_response = response.json()
+
+        results_list = ckan_response["result"]["results"]
+        LOGGER.info("CKAN Results: " + str(results_list))
+
+        ckan_result_list = [
+            {
+                "name": dataset["name"],
+                "dataset_id": dataset["id"],
+            }
+            for dataset in results_list
+        ]
+        LOGGER.info("CKAN Results: " + str(ckan_result_list))
+
+        return Response(ckan_result_list)

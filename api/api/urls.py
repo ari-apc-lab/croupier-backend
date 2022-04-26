@@ -26,5 +26,6 @@ urlpatterns = [
     path("oidc/", include("mozilla_django_oidc.urls")),
     path("", include("croupier.urls")),
     path("credentials/", views.UserCredentialsViewSet.as_view(), name='credentials'),
-    path("credentials/<str:pk>/", views.CredentialViewSet.as_view())
+    path("credentials/<str:pk>/", views.CredentialViewSet.as_view()),
+    path("ckan/", views.CKANViewSet.as_view())
 ]
