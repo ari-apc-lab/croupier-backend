@@ -285,22 +285,32 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         created_filter = self.request.query_params.get('created')
         LOGGER.info("Created filter: " + str(created_filter))
 
+        # Filter results by owner
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        user_name = vault.get_user_info(user_token)
+        LOGGER.info("Author filter: " + user_name)
+
         # Obtain all the instances as first query
         instances = AppInstance.objects.all()
 
         # Filter by name if available
         if name_filter is not None:
             instances = instances.filter(name__icontains=name_filter)
-            LOGGER.info("Name filter. Number of apps to send: " + str(len(instances)))
+            LOGGER.info("Name filter. Number of instances to send: " + str(len(instances)))
 
         # Filter by app if available
         if app_filter is not None:
             instances = instances.filter(app__name__icontains=app_filter)
-            LOGGER.info("App filter. Number of apps to send: " + str(len(instances)))
+            LOGGER.info("App filter. Number of instances to send: " + str(len(instances)))
 
         if created_filter is not None:
             instances = instances.filter(created__gte=datetime.strptime(created_filter, "%Y-%m-%dT%H:%M:%S.%f%z"))
-            LOGGER.info("Date filter. Number of apps to send: " + str(len(instances)))
+            LOGGER.info("Date filter. Number of instances to send: " + str(len(instances)))
+
+        # Filter by owner
+        instances = instances.filter(owner=user_name)
+        LOGGER.info("Owner filter. Number of instances to send: " + str(len(instances)))
 
         serializer = AppInstanceSerializer(instances, many=True)
         return Response(serializer.data)
@@ -320,9 +330,13 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         except Exception as ex:
             pass  # Instance does not exist, proceeding with creation
 
-        # Modify author's information (TODO Get author's info from Keycloak and adapt)
+        # Modify author's information and create the user if it doesn't exist
         request.data._mutable = True
-        request.data["owner"] = "admin"
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        user_name = vault.get_user_info(user_token)
+        request.data["owner"] = user_name
+        synchronize_user_in_model(user_name)
 
         # Retrieve basic information (for consistency checking)
         blueprint_id = request.data["app"]
@@ -420,6 +434,12 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         # instance = self.get_object()
         instance = AppInstance.objects.get(pk=pk)
         LOGGER.info("Current instance for execution: " + str(self.get_serializer(instance).data))
+
+        # Collect user info and check it's the adequate one
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        user_name = vault.get_user_info(user_token)
+        LOGGER.info("User executing: " + user_name)
         # if instance.owner != request.user:
         #    return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -446,7 +466,7 @@ class AppInstanceViewSet(viewsets.ModelViewSet):
         # create new execution element
         new_execution_id = execution["id"]
         new_execution_date = datetime.now(timezone.utc)
-        new_execution_owner = User.objects.get(username='admin')
+        new_execution_owner = User.objects.get(username=user_name)
         new_execution = InstanceExecution(id=new_execution_id, instance=instance, created=new_execution_date,
                                           owner=new_execution_owner)
         new_execution.save()
@@ -665,11 +685,16 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         LOGGER.info("Requesting the list of Executions...")
 
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        user_name = vault.get_user_info(user_token)
+        LOGGER.info("User listing (and filter): " + user_name)
+
         # TODO We should get all the executions of existing deployments going through their events (sync)
         # Update the information for all the executions that are not already registered aas 'terminated'
-        self.update_executions()
+        self.update_executions(user_name)
 
-        # Filter results by name, if filter available
+        # Filter results by name, status and date if filter available
         name_filter = self.request.query_params.get('name')
         LOGGER.info("Name filter: " + str(name_filter))
         status_filter = self.request.query_params.get('status')
@@ -689,6 +714,10 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
         if created_filter is not None:
             execs = execs.filter(created__gte=datetime.strptime(created_filter, "%Y-%m-%dT%H:%M:%S.%f%z"))
             LOGGER.info("Date filter. Number of executions to send: " + str(len(execs)))
+
+        # Filter by owner
+        execs = execs.filter(owner=user_name)
+        LOGGER.info("Owner filter. Number of instances to send: " + str(len(execs)))
 
         serializer = InstanceExecutionSerializer(execs, many=True)
         return Response(serializer.data)
@@ -739,21 +768,28 @@ class InstanceExecutionViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return Response(status=status.HTTP_403_FORBIDDEN)
 
-    def update_executions(self):
+    def update_executions(self, owner_user):
         LOGGER.info("Updating the status of the executions...")
 
         # Take the full list of executions in the DDBB and update them one by one
-        # all_executions = InstanceExecution.objects.all()
-        # for execution in all_executions:
-        #     exec_full_info = cfy.get_execution(execution.id)
-        #     LOGGER.info("Execution Info: " + str(exec_full_info))
+        # Executions cannot be deleted at Cloudify, so we go through all of them
+        all_executions = InstanceExecution.objects.filter(owner=owner_user)
+        for execution in all_executions:
+            if execution.status != 'terminated':
+                exec_full_info = cfy.get_execution(execution.id)
+                LOGGER.info("Execution Info: " + str(exec_full_info))
 
-        # exec_full_info = cfy.get_execution("e0ad025b-7692-4a4c-afcb-cfc8aa9b1129")
-        # LOGGER.info("Execution Info: " + str(exec_full_info))
-        # dep_info = cfy.list_deployment_inputs("testb_01_demo")
-        # LOGGER.info("Deployment Info: " + str(dep_info))
-        # bluep_info = cfy.list_blueprint_inputs("test_new_0")
-        # LOGGER.info("Blueprint Info: " + str(bluep_info))
+                # Update progress, task, status, time...
+                execution.status = exec_full_info['status']
+                execution.execution_time = exec_full_info['execution_time']
+                execution.current_task = exec_full_info['current_task']
+                execution.progress = exec_full_info['progress']
+                execution.num_errors = exec_full_info['num_errors']
+                if exec_full_info['status'] == 'terminated' or exec_full_info['status'] == 'failed':
+                    execution.finished = exec_full_info['end_time']
+                if exec_full_info['num_errors'] > 0:
+                    execution.has_errors = True
+                execution.save()
 
 
 class UserCredentialsViewSet(APIView):
@@ -772,6 +808,21 @@ class UserCredentialsViewSet(APIView):
 
         return Response(token_info)
 
+    def post(self, request, format=None):
+        # Retrieve user's token to check in Keycloak
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        LOGGER.info("Security token credential: " + str(user_token))
+        token_info = vault.get_user_info(user_token)
+        LOGGER.info("User name: " + token_info)
+        credential_data = request.data
+        LOGGER.info("New credential data host: " + credential_data["host"])
+
+        # List all the credentials stored for the user with the token
+        # vault_upload = vault.upload_user_secret(user_token, credential_data)
+
+        return Response(token_info)
+
 
 class CredentialViewSet(APIView):
     permission_classes = [IsAuthenticated]  # TODO use roles
@@ -786,21 +837,7 @@ class CredentialViewSet(APIView):
         LOGGER.info("Credential Id: " + pk)
 
         # List all the credentials stored for the user with the token
-        # vault_credentials = vault.get_user_tokens(user_token)
-
-        return Response(token_info)
-
-    def post(self, request, pk, format=None):
-        # Retrieve user's token to check in Keycloak
-        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
-        user_token = auth_header.replace('Bearer ', '', 1)
-        LOGGER.info("Security token credential: " + str(user_token))
-        token_info = vault.get_user_info(user_token)
-        LOGGER.info("User name: " + token_info)
-        LOGGER.info("Credential Id: " + pk)
-
-        # List all the credentials stored for the user with the token
-        # vault_credentials = vault.get_user_tokens(user_token)
+        # vault_credential = vault.get_user_token_info(user_token, pk)
 
         return Response(token_info)
 
@@ -814,6 +851,6 @@ class CredentialViewSet(APIView):
         LOGGER.info("Credential Id: " + pk)
 
         # List all the credentials stored for the user with the token
-        # vault_credentials = vault.get_user_tokens(user_token)
+        # vault_delete = vault.remove_user_secret(user_token, pk)
 
         return Response(token_info)

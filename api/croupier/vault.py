@@ -14,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 oidc_client_id = getenv("OIDC_RP_CLIENT_ID", "backend")
 oidc_client_secret = getenv("OIDC_RP_CLIENT_SECRET", "")
 oidc_introspection_endpoint = getenv("OIDC_OP_TOKEN_ENDPOINT", "") + "/introspect"
-vault_endpoint = getenv("VAULT_ADDRESS", "") + ":" + getenv("VAULT_PORT", "8200")
+vault_endpoint = getenv("VAULT_ADDRESS", "") + ":" + getenv("VAULT_PORT", "8200") + "/croupier"
 if not vault_endpoint.startswith('http'):
     vault_endpoint = 'http://' + vault_endpoint
 vault_admin_token = getenv("VAULT_ADMIN_TOKEN", "")
@@ -39,16 +39,43 @@ def get_user_tokens(access_token):
     return credentials_list
 
 
-def upload_user_secret(access_token, credentials_dic):
+def get_user_token_info(access_token, host_name):
     # Connect with the Vault_Secret_Uploader to get all the secrets
     # Prepare headers (authentication)
     vault_headers = {'Authorization': 'Bearer ' + access_token}
 
     # Send request and get secrets
+    vault_token_endpoint = vault_endpoint + "/" + host_name
+    response = get(vault_token_endpoint, headers=vault_headers)
+    credential_info = response.json()
+    LOGGER.info("Vault secret info: " + str(credential_info))
+    return credential_info
+
+
+def upload_user_secret(access_token, credentials_dic):
+    # Connect with the Vault_Secret_Uploader to upload the new secret
+    # Prepare headers (authentication)
+    vault_headers = {'Authorization': 'Bearer ' + access_token}
+
+    # Send request and POST the credential info as dict
     response = post(vault_endpoint, headers=vault_headers, data=credentials_dic)
     upload_response = response.json()
     LOGGER.info("Vault response: " + str(upload_response))
     return upload_response
+
+
+def remove_user_secret(access_token, host_name):
+    # Connect with the Vault_Secret_Uploader to upload the new secret
+    # Prepare headers (authentication)
+    vault_headers = {'Authorization': 'Bearer ' + access_token}
+
+    # Send request and POST the credential info as dict
+    vault_delete_endpoint = vault_endpoint + "/" + host_name
+    LOGGER.info("Delete endpoint: " + vault_delete_endpoint)
+    response = delete(vault_delete_endpoint, headers=vault_headers)
+    delete_response = response.json()
+    LOGGER.info("Vault response: " + str(delete_response))
+    return delete_response
 
 
 def _token_info(access_token) -> dict:
