@@ -55,13 +55,22 @@ def get_user_token_info(access_token, host_name):
 def upload_user_secret(access_token, credentials_dic):
     # Connect with the Vault_Secret_Uploader to upload the new secret
     # Prepare headers (authentication)
-    vault_headers = {'Authorization': 'Bearer ' + access_token}
+    vault_headers = {'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json'}
+    payload_dic = {'host': credentials_dic["host"],
+                   'private_key': credentials_dic["private_key"],
+                   'password': credentials_dic["password"],
+                   'user': credentials_dic["user"],
+                   'auth-header': credentials_dic["auth-header"],
+                   'auth-header-label': credentials_dic["auth-header-label"]}
+    LOGGER.info("Call: " + str(json.dumps(payload_dic)))
 
     # Send request and POST the credential info as dict
-    response = post(vault_endpoint, headers=vault_headers, data=credentials_dic)
-    upload_response = response.json()
-    LOGGER.info("Vault response: " + str(upload_response))
-    return upload_response
+    response = post(vault_endpoint, headers=vault_headers, data=json.dumps(payload_dic))
+    LOGGER.info("Result: " + str(response.content))
+    upload_success = True
+    if not response.ok:
+        upload_success = False
+    return upload_success
 
 
 def remove_user_secret(access_token, host_name):

@@ -806,9 +806,9 @@ class UserCredentialsViewSet(APIView):
         LOGGER.info("User name: " + token_info)
 
         # List all the credentials stored for the user with the token
-        # vault_credentials = vault.get_user_tokens(user_token)
+        vault_credentials = vault.get_user_tokens(user_token)
 
-        return Response(token_info)
+        return Response(vault_credentials)
 
     def post(self, request, format=None):
         # Retrieve user's token to check in Keycloak
@@ -821,9 +821,9 @@ class UserCredentialsViewSet(APIView):
         LOGGER.info("New credential data host: " + credential_data["host"])
 
         # List all the credentials stored for the user with the token
-        # vault_upload = vault.upload_user_secret(user_token, credential_data)
+        vault_upload = vault.upload_user_secret(user_token, credential_data)
 
-        return Response(token_info)
+        return Response(vault_upload)
 
 
 class CredentialViewSet(APIView):

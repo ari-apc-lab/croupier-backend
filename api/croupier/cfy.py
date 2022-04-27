@@ -40,7 +40,7 @@ def _get_client():
         username=settings.ORCHESTRATOR_USER,
         password=settings.ORCHESTRATOR_PASS,
         tenant=settings.ORCHESTRATOR_TENANT,
-        protocol="https"
+        protocol="http"
     )
     return client
 
@@ -274,7 +274,7 @@ def get_execution(execution_id):
     nodes_in_plan = blueprint_plan["plan"]["nodes"]
     nodes_list = []
     for node in nodes_in_plan:
-        if node["type"] == "croupier.nodes.Job":
+        if node["type"] == "croupier.nodes.Job" or node["type"] == "croupier.nodes.PyCOMPSsJob":
             nodes_list.append(node["id"])
             LOGGER.info("Found job node: " + str(node["id"]) + " of type " + str(node["type"]))
 
