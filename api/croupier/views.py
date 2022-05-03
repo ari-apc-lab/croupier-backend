@@ -21,6 +21,7 @@ from datetime import *
 
 from croupier import cfy
 from croupier import vault
+from croupier import marketplace
 from croupier.models import (
     Application,
     AppInstance,
@@ -110,6 +111,14 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         else:
             apps = Application.objects.all()
             LOGGER.info("Number of apps to send: " + str(len(apps)))
+
+        # Filter results by ordered applications (from WooCommerce marketplace)
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        user_name = vault.get_user_info(user_token)
+        LOGGER.info("Author filter: " + user_name)
+        apps_allowed_list = marketplace.check_orders_for_user(user_name)
+        LOGGER.info("Apps ordered: " + str(apps_allowed_list))
 
         serializer = ApplicationSerializer(apps, many=True)
         return Response(serializer.data)
