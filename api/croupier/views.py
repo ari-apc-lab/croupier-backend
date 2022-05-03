@@ -116,20 +116,28 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         auth_header = self.request.META.get('HTTP_AUTHORIZATION')
         user_token = auth_header.replace('Bearer ', '', 1)
         user_name = vault.get_user_info(user_token)
-        LOGGER.info("Author filter: " + user_name)
+        LOGGER.info("User requesting: " + user_name)
         apps_allowed_list = marketplace.check_orders_for_user(user_name)
         LOGGER.info("Apps ordered: " + str(apps_allowed_list))
-        apps = Application.objects.all().filter(name__in=apps_allowed_list)
+        apps = apps.filter(name__in=apps_allowed_list) | apps.filter(owner=user_name)
         LOGGER.info("Number of apps to send: " + str(len(apps)))
 
         serializer = ApplicationSerializer(apps, many=True)
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+
+        # Determine which user created the application
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        user_token = auth_header.replace('Bearer ', '', 1)
+        user_name = vault.get_user_info(user_token)
+        LOGGER.info("App owner: " + user_name)
+        synchronize_user_in_model(user_name)
+
         # Request is immutable by default
         _mutable = request.data._mutable
         request.data._mutable = True
-        request.data["owner"] = "admin"
+        request.data["owner"] = user_name
         request.data["is_new"] = True
         request.data["is_advertised"] = False
         request.data["included"] = str(datetime.now(timezone.utc))
