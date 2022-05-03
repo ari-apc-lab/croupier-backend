@@ -119,6 +119,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         LOGGER.info("Author filter: " + user_name)
         apps_allowed_list = marketplace.check_orders_for_user(user_name)
         LOGGER.info("Apps ordered: " + str(apps_allowed_list))
+        apps = Application.objects.all().filter(name__in=apps_allowed_list)
+        LOGGER.info("Number of apps to send: " + str(len(apps)))
 
         serializer = ApplicationSerializer(apps, many=True)
         return Response(serializer.data)
