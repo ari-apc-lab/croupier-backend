@@ -117,9 +117,9 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         user_token = auth_header.replace('Bearer ', '', 1)
         user_name = vault.get_user_info(user_token)
         LOGGER.info("User requesting: " + user_name)
-        apps_allowed_list = marketplace.check_orders_for_user(user_name)
-        LOGGER.info("Apps ordered: " + str(apps_allowed_list))
-        apps = apps.filter(name__in=apps_allowed_list) | apps.filter(owner=user_name)
+        # apps_allowed_list = marketplace.check_orders_for_user(user_name)
+        # LOGGER.info("Apps ordered: " + str(apps_allowed_list))
+        # apps = apps.filter(name__in=apps_allowed_list) | apps.filter(owner=user_name)
         LOGGER.info("Number of apps to send: " + str(len(apps)))
 
         serializer = ApplicationSerializer(apps, many=True)
